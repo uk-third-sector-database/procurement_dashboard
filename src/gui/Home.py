@@ -1,5 +1,5 @@
+import sidebar
 import streamlit as st
-
 
 st.set_page_config(
     layout="wide",
@@ -8,4 +8,4 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-st.title("Procurement Dashboard")
+sidebar.display()
