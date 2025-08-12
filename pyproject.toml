@@ -1,0 +1,67 @@
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[project]
+name = "procurement-dashboard"
+version = "0.0.1"
+description = ""
+readme = "README.md"
+requires-python = "==3.12.*"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: BSD 3-Clause License",
+    "Operating System :: OS Independent"
+]
+
+authors = [
+]
+dependencies = [
+    "streamlit>=1.48.0"
+]
+
+
+[project.urls]
+"Homepage" = "https://github.com/uk-third-sector-database/procurement_dashboard"
+"Bug Tracker" = "https://github.com/uk-third-sector-database/procurement_dashboardissues"
+
+
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "ruff>=0.3.0",
+    "pyinstaller>=6.13.0",
+]
+docs = [
+    "sphinx>=8.2.3",
+    "sphinx-autoapi>=3.6.0",
+    "furo>=2024.8.6",
+    "pydata-sphinx-theme>=0.16.1",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.pdm.scripts]
+lint = "ruff check ."
+format = "ruff format ."
+fix = "ruff check . --fix"
+docs = "sphinx-build -b html docs/source docs/build"
+
+[tool.pdm]
+package-dir = {"" = "src"}
+
+[tool.pdm.packages]
+processing = "src/processing"
+utils = "src/utils"
