@@ -64,5 +64,6 @@ docs = "sphinx-build -b html docs/source docs/build"
 package-dir = {"" = "src"}
 
 [tool.pdm.packages]
+gui = "src/gui"
 processing = "src/processing"
 utils = "src/utils"

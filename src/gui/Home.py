@@ -1,5 +1,7 @@
-import sidebar
+
 import streamlit as st
+
+import sidebar
 
 st.set_page_config(
     layout="wide",
