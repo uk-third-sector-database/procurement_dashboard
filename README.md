@@ -24,3 +24,8 @@ Linting for just one file
 ```bash
 pdm run ruff check <file.py>
 ```
+
+Run the streamlit app
+```bash
+pdm run streamlit run src/gui/Home.py
+```
