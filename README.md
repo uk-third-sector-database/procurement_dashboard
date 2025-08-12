@@ -6,7 +6,7 @@ This project uses Python 3.12 or newer and manages dependencies with PDM. If not
 
 Install project dependencies with `pdm install`. If needed, install the development dependencies with `pdm install -G dev`. Force PDM to resolve and lock the dev dependencies `pdm lock -G dev`. Check the setup is correct with `pdm info`. Get a list of the declared packages `pdm list --graph`
 
-Add a pacakge with `pdm add <package_name>`, remove a package with `pdm remove <package_name>`. Add a package as a development dependency with
+Add a package with `pdm add <package_name>`, remove a package with `pdm remove <package_name>`. Add a package as a development dependency with
 `pdm add -G dev <package_name>`.
 
 Run code
