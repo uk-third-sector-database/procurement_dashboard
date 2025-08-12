@@ -23,7 +23,7 @@ dependencies = [
 
 [project.urls]
 "Homepage" = "https://github.com/uk-third-sector-database/procurement_dashboard"
-"Bug Tracker" = "https://github.com/uk-third-sector-database/procurement_dashboardissues"
+"Bug Tracker" = "https://github.com/uk-third-sector-database/procurement_dashboard/issues"
 
 
 
