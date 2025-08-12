@@ -17,7 +17,8 @@ classifiers = [
 authors = [
 ]
 dependencies = [
-    "streamlit>=1.48.0"
+    "streamlit>=1.48.0",
+    "ruff>=0.12.8"
 ]
 
 
