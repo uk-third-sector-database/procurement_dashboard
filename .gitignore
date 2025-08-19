@@ -2,3 +2,4 @@
 .venv/
 .pdm-python
 __pycache__/
+data/
