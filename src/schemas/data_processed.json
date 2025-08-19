@@ -1,0 +1,309 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://example.org/final_procurement_dataset.schema.json",
+    "title": "Procurement Dataset",
+    "description": "Schgema for the processed procurement dataset.",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "data_source": {
+            "type": "string",
+            "enum": [
+                "Central Government",
+                "NHS Spend",
+                "Contracts Finder"
+            ],
+            "description": "One of three main sources of data for that individual payment."
+        },
+        "dept": {
+            "type": "string",
+            "description": "The sub-department of the data_source for that individual payment."
+        },
+        "amount": {
+            "type": "number",
+            "description": "The amount for that individual payment."
+        },
+        "supplier": {
+            "type": "string",
+            "description": "The name of the supplier for that individual payment."
+        },
+        "normalized_supplier": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "The normalised name of the supplier for that individual payment."
+        },
+        "date_payment": {
+            "type": "string",
+            "format": "date",
+            "description": "The date of payment (inconsistent/uncertain meanings)."
+        },
+        "contractsfinder_awardedtovcse": {
+            "type": [
+                "boolean",
+                "null"
+            ],
+            "description": "Contracts Finder flag for whether a payment was made to a VCSE."
+        },
+        "contractsfinder_region": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "Contracts Finder region flag for that individual payment."
+        },
+        "daterange_org_seen": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "Min/max date range observed at the aggregate SUPPLIER level."
+        },
+        "total_value_payments_to_org": {
+            "type": [
+                "number",
+                "null"
+            ],
+            "description": "Total value of payments to the raw SUPPLIER name."
+        },
+        "total_number_payments_to_org": {
+            "type": [
+                "integer",
+                "null"
+            ],
+            "description": "Total number of payments to the raw SUPPLIER name."
+        },
+        "orgflag": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "Flag added by the manual verification exercise matches."
+        },
+        "verifmatch": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "Type of match or lookup value to spine (manual verification exercise)."
+        },
+        "verifcode": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "Code for manual matching (manual verification exercise)."
+        },
+        "verifnote": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "Notes from manual verification exercise."
+        },
+        "manual_match_to_spine": {
+            "type": [
+                "boolean",
+                "null"
+            ],
+            "description": "Boolean for manual match to spine."
+        },
+        "other_exact_match": {
+            "type": [
+                "boolean",
+                "null"
+            ],
+            "description": "Boolean for exact match by NORMALIZED_SUPPLIER."
+        },
+        "isspine_manual": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "Flag for whether a manual match is thought to be made to the spine from any verifcode."
+        },
+        "isspine": {
+            "type": [
+                "boolean",
+                "null"
+            ],
+            "description": "Aggregate boolean flag combining manual_match_to_spine and other_exact_match."
+        },
+        "longmatch": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "Longer manual match name where appropriate."
+        },
+        "uid": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "UID at the spine level (semi-colon delimited registry IDs)."
+        },
+        "organisationname": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "Organisation full name at the spine level."
+        },
+        "fulladdress": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "Full address of the supplying organisation at the spine level."
+        },
+        "city": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "City of the supplying organisation at the spine level."
+        },
+        "postcode": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "Postcode of the supplying organisation at the spine level."
+        },
+        "registerdate": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "format": "date",
+            "description": "Registration date of the organisation at the spine level."
+        },
+        "removeddate": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "format": "date",
+            "description": "Date removed from the register at the spine level."
+        },
+        "latitude": {
+            "type": [
+                "number",
+                "null"
+            ],
+            "description": "Latitude of the supplier for that individual payment."
+        },
+        "longitude": {
+            "type": [
+                "number",
+                "null"
+            ],
+            "description": "Longitude of the supplier for that individual payment."
+        },
+        "geometry": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "Geopandas geometry of the supplier for that individual payment (e.g., WKT)."
+        },
+        "nuts_id_0": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "NUTS_0 ID of the supplier."
+        },
+        "nuts_name_0": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "NUTS_0 NAME of the supplier."
+        },
+        "nuts_id_1": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "NUTS_1 ID of the supplier."
+        },
+        "nuts_name_1": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "NUTS_1 NAME of the supplier."
+        },
+        "nuts_id_2": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "NUTS_2 ID of the supplier."
+        },
+        "nuts_name_2": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "NUTS_2 NAME of the supplier."
+        },
+        "nuts_id_3": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "NUTS_3 ID of the supplier."
+        },
+        "nuts_name_3": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "description": "NUTS_3 NAME of the supplier."
+        }
+    },
+    "required": [
+        "data_source",
+        "dept",
+        "amount",
+        "supplier",
+        "normalized_supplier",
+        "date_payment",
+        "contractsfinder_awardedtovcse",
+        "contractsfinder_region",
+        "daterange_org_seen",
+        "total_value_payments_to_org",
+        "total_number_payments_to_org",
+        "orgflag",
+        "verifmatch",
+        "verifcode",
+        "verifnote",
+        "manual_match_to_spine",
+        "other_exact_match",
+        "isspine_manual",
+        "isspine",
+        "longmatch",
+        "uid",
+        "organisationname",
+        "fulladdress",
+        "city",
+        "postcode",
+        "registerdate",
+        "removeddate",
+        "latitude",
+        "longitude",
+        "geometry",
+        "nuts_id_0",
+        "nuts_name_0",
+        "nuts_id_1",
+        "nuts_name_1",
+        "nuts_id_2",
+        "nuts_name_2",
+        "nuts_id_3",
+        "nuts_name_3"
+    ]
+}
