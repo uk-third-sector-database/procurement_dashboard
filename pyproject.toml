@@ -21,7 +21,9 @@ dependencies = [
     "ruff>=0.12.8",
     "polars>=1.32.3",
     "ipykernel>=6.30.1",
-    "jsonschema2md>=1.7.0"
+    "jsonschema2md>=1.7.0",
+    "plotly>=6.3.0",
+    "nbformat>=5.10.4"
 ]
 
 
