@@ -35,7 +35,7 @@ COLUMN_NAMES = {
     "normalized_supplier": "Supplier (norm)",
     "contractsfinder_awardedtovcse": "CF -> VCSE",
     "contractsfinder_region": "CF region",
-    "daterange_org_seen": "Date range (org seen)",
+    "daterange_org_seen": "Org seen - date range",
     "daterange_org_seen_min_date": "Org seen - min date",
     "daterange_org_seen_max_date": "Org seen - max date",
     "total_value_payments_to_org": "Total value payment (supplier)",
@@ -209,7 +209,7 @@ def prepare_parquet(in_fpath: Path, out_fpath: Path):
     print(f"- records with {column_name} between {MIN_YEAR} and {MAX_YEAR}: {dset.shape[0]}")
 
     # rename columns
-    dset = dset.rename(COLUMN_NAMES)
+    dset = dset.rename(columns=COLUMN_NAMES)
 
     # write the processed data
     print(f"Writing processed data to: {out_fpath}")
