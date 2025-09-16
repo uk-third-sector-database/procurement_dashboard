@@ -27,4 +27,3 @@ def display() -> None:
     logo_columns = st.sidebar.columns(2)
     logo_columns[0].image(LOGOS[4])
     logo_columns[1].image(LOGOS[5])
-    
