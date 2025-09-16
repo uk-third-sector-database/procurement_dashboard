@@ -1,18 +1,11 @@
-""" Home page for the procurement dashboard app. """
+"""Home page for the procurement dashboard app."""
+
 from pathlib import Path
 
 import duckdb
+import pandas as pd
 import sidebar
 import streamlit as st
-
-SELECT_ALL = "<ALL>"
-
-TEXT_MAPPING = {
-    "DESC": "largest",
-    "ASC": "lowest",
-}
-
-NULLS = "NULLS LAST"
 
 
 def quote_ident(name: str) -> str:
@@ -22,6 +15,32 @@ def quote_ident(name: str) -> str:
     """
     return '"' + name.replace('"', '""') + '"'
 
+
+SELECT_ALL = "<ALL>"
+
+TEXT_MAPPING = {
+    "DESC": "largest",
+    "ASC": "lowest",
+}
+
+NULLS = "NULLS LAST"
+COLUMNS_TO_DISPLAY = [
+    "Source",
+    "Department",
+    "Amount",
+    "Supplier",
+    "Payment date",
+    "Total value payments",
+    "Total payments",
+    "Is spine?",
+]
+COLUMNS_TO_DISPLAY_SQL = ", ".join(quote_ident(c) for c in COLUMNS_TO_DISPLAY)
+
+COLUMN_TO_DISPLAY_STYLES = {
+    "Amount": "{:,.0f}",
+    "Total value payments": "{:,.0f}",
+    "Total payments": "{:,.0f}",
+}
 
 st.set_page_config(
     layout="wide",
@@ -41,23 +60,16 @@ con = duckdb.connect()
 rel = con.read_parquet(str(FILEPATH))
 rel.create_view("data", replace=True)
 
-# build the sources filter in the sidebar
-COLUMN_NAME = "Source"
-sources = (
-    con.execute(f"SELECT DISTINCT {COLUMN_NAME} FROM data ORDER BY 1")
-    .fetchdf()[COLUMN_NAME]
-    .tolist()
-)
-
-selected_sources = st.sidebar.multiselect(
-    COLUMN_NAME,
-    options=sources,
-    default=sources,
-    help="Select multiple sources to filter the dataset.",
-)
+# get the data columns
+# column_names = (
+#     con.execute("SELECT name FROM pragma_table_info('data')")
+#     .fetchdf()["name"]
+#     .tolist()
+# )
+# print(column_names)
 
 # build the sidebar display settings
-with st.sidebar.expander("Display settings", expanded=True):
+with st.sidebar.expander("Display settings", expanded=False):
     sort_by = st.selectbox(
         "Sort by",
         options=["Total value payments", "Total payments"],
@@ -83,33 +95,112 @@ with st.sidebar.expander("Display settings", expanded=True):
     )
 
 
+# get data from the file to build various widgets
+COLUMN_SOURCE = "Source"
+sources = (
+    con.execute(
+        f"""
+        SELECT DISTINCT {COLUMN_SOURCE} FROM data ORDER BY 1
+        """
+    )
+    .fetchdf()[COLUMN_SOURCE]
+    .tolist()
+)
+
+COLUMN_PAYMENT_DATE = "Payment date"
+KEY_PAYMENT_DATE_RANGE = f"{COLUMN_PAYMENT_DATE}_range"
+dmin, dmax = con.execute(
+    f"""
+    SELECT 
+    MIN(CAST({quote_ident(COLUMN_PAYMENT_DATE)} AS DATE)),
+    MAX(CAST({quote_ident(COLUMN_PAYMENT_DATE)} AS DATE))
+    FROM data
+    """
+).fetchone()
+if KEY_PAYMENT_DATE_RANGE not in st.session_state:
+    # set the initial value to the full range
+    st.session_state[KEY_PAYMENT_DATE_RANGE] = (dmin, dmax)
+
+selected_sources = st.sidebar.multiselect(
+    COLUMN_SOURCE,
+    options=sources,
+    default=sources,
+    help="Select multiple sources to filter the dataset.",
+)
+
+date_cols = st.sidebar.columns([7, 1])
+# two lines to vertically align the button with the date input
+date_cols[1].markdown(" ")
+date_cols[1].markdown(" ")
+if date_cols[1].button("↺", help="Reset date range"):
+    st.session_state[KEY_PAYMENT_DATE_RANGE] = (dmin, dmax)
+# value not given because it is set in the session state KEY_PAYMENT_DATE_RANGE
+date_range = date_cols[0].date_input(
+    COLUMN_PAYMENT_DATE,
+    min_value=dmin,
+    max_value=dmax,
+    format="DD/MM/YYYY",
+    help="Select the date range for the payment date.",
+    key=KEY_PAYMENT_DATE_RANGE,
+)
+
+if not isinstance(date_range, (tuple, list)) or len(date_range) != 2:
+    st.sidebar.warning("Please select both a start and end date.")
+    st.stop()
+else:
+    start_date, end_date = date_range
+    if start_date > end_date:
+        st.sidebar.warning("Please ensure the start date is before the end date.")
+        st.stop()
+
+
 if not selected_sources:
     st.warning("Please select at least one source to display any data.")
     st.stop()
 
-WHERE_CLAUSE = f"{quote_ident(COLUMN_NAME)} IN ({', '.join('?' for _ in selected_sources)})"
+# build the WHERE clause and parameters
+clauses, params = [], []
+
+# source
+PLACEHOLDERS = ", ".join("?" for _ in selected_sources)
+clauses.append(f"{quote_ident(COLUMN_SOURCE)} IN ({PLACEHOLDERS})")
+params.extend(selected_sources)
+
+# date range
+clauses.append(f"CAST({quote_ident(COLUMN_PAYMENT_DATE)} AS DATE) BETWEEN ? AND ?")
+params.extend(st.session_state[KEY_PAYMENT_DATE_RANGE])
+
+WHERE_CLAUSE = " AND ".join(clauses) if clauses else "TRUE"
 
 # get stats for the filtered dataset
-n_records = con.execute(
-    f"SELECT COUNT(*) FROM data WHERE {WHERE_CLAUSE}", selected_sources
-).fetchone()[0]
+n_records = con.execute(f"SELECT COUNT(*) FROM data WHERE {WHERE_CLAUSE}", params).fetchone()[0]
 
 # get the dataset to display
 dset = con.execute(
     f"""
-    SELECT *
+    SELECT {COLUMNS_TO_DISPLAY_SQL}
     FROM data
     WHERE {WHERE_CLAUSE}
     ORDER BY {quote_ident(sort_by)} {order} {NULLS}
     LIMIT ?
     """,
-    selected_sources + [n_displayed_records],
+    params + [n_displayed_records],
 ).fetchdf()
+
+if dset.empty:
+    st.warning("No records available for the selected filters.")
+    st.stop()
 
 st.metric("Selected records", f"{n_records:,}")
 
 st.write(f"""
-{n_displayed_records} records with the **{TEXT_MAPPING[order]}** values for **{sort_by}**.
+The **{n_displayed_records}** records with the **{TEXT_MAPPING[order]}** values for **{sort_by}**
 """)
 
-st.dataframe(dset, use_container_width=True, hide_index=True)
+# format the columns to display
+date_cols = ["Payment date", "Org seen - min date", "Org seen - max date"]
+for col in date_cols:
+    if col in dset.columns and pd.api.types.is_datetime64_any_dtype(dset[col]):
+        dset[col] = dset[col].dt.strftime("%d/%m/%Y")
+dset_styled = dset.style.format(COLUMN_TO_DISPLAY_STYLES)
+st.dataframe(dset_styled, use_container_width=True, hide_index=True)
