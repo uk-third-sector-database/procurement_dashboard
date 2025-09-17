@@ -157,32 +157,65 @@ selected_sources = st.sidebar.multiselect(
 )
 
 COLUMN_SPINE = "Is spine?"
-is_spine = st.sidebar.toggle(
-    COLUMN_SPINE, 
-    value=True,
+is_spine = st.sidebar.selectbox(
+    COLUMN_SPINE,
+    options=[None, True, False],
+    format_func=lambda x: "Either" if x is None else str(x),
     help=f"Choose value for the '{COLUMN_SPINE}' column."
 )
 
+# COLUMN_SPINE = "Is spine?"
+# is_spine = st.sidebar.toggle(
+#     COLUMN_SPINE, 
+#     value=True,
+#     help=f"Choose value for the '{COLUMN_SPINE}' column."
+# )
+
 COLUMN_MANUAL_MATCH = "Manual match to spine?"
-is_manual_match = st.sidebar.toggle(
-    COLUMN_MANUAL_MATCH, 
-    value=True,
+is_manual_match = st.sidebar.selectbox(
+    COLUMN_MANUAL_MATCH,
+    options=[None, True, False],
+    format_func=lambda x: "Either" if x is None else str(x),
     help=f"Choose value for the '{COLUMN_MANUAL_MATCH}' column."
 )
 
+
+# COLUMN_MANUAL_MATCH = "Manual match to spine?"
+# is_manual_match = st.sidebar.toggle(
+#     COLUMN_MANUAL_MATCH, 
+#     value=True,
+#     help=f"Choose value for the '{COLUMN_MANUAL_MATCH}' column."
+# )
+
 COLUMN_OTHER_MATCH = "Other match to spine?"
-is_other_match = st.sidebar.toggle(
-    COLUMN_OTHER_MATCH, 
-    value=True,
+is_other_match = st.sidebar.selectbox(
+    COLUMN_OTHER_MATCH,
+    options=[None, True, False],
+    format_func=lambda x: "Either" if x is None else str(x),
     help=f"Choose value for the '{COLUMN_OTHER_MATCH}' column."
 )
 
+# COLUMN_OTHER_MATCH = "Other match to spine?"
+# is_other_match = st.sidebar.toggle(
+#     COLUMN_OTHER_MATCH, 
+#     value=True,
+#     help=f"Choose value for the '{COLUMN_OTHER_MATCH}' column."
+# )
+
 COLUMN_REMOVED = "Removed?"
-is_removed = st.sidebar.toggle(
-    COLUMN_REMOVED, 
-    value=True,
+is_removed = st.sidebar.selectbox(
+    COLUMN_REMOVED,
+    options=[None, True, False],
+    format_func=lambda x: "Either" if x is None else str(x),
     help=f"Choose value for the '{COLUMN_REMOVED}' column."
 )
+
+# COLUMN_REMOVED = "Removed?"
+# is_removed = st.sidebar.toggle(
+#     COLUMN_REMOVED, 
+#     value=True,
+#     help=f"Choose value for the '{COLUMN_REMOVED}' column."
+# )
 
 date_cols = st.sidebar.columns([7, 1])
 # two lines to vertically align the button with the date input
@@ -223,20 +256,24 @@ clauses.append(f"{quote_ident(COLUMN_SOURCE)} IN ({PLACEHOLDERS})")
 params.extend(selected_sources)
 
 # is spine
-clauses.append(f"{quote_ident(COLUMN_SPINE)} = ?")
-params.append(is_spine)
+if is_spine is not None:
+    clauses.append(f"{quote_ident(COLUMN_SPINE)} = ?")
+    params.append(is_spine)
 
 # is manual match
-clauses.append(f"{quote_ident(COLUMN_MANUAL_MATCH)} = ?")
-params.append(is_manual_match)
+if is_manual_match is not None:
+    clauses.append(f"{quote_ident(COLUMN_MANUAL_MATCH)} = ?")
+    params.append(is_manual_match)
 
 # is other match
-clauses.append(f"{quote_ident(COLUMN_OTHER_MATCH)} = ?")
-params.append(is_other_match)
+if is_other_match is not None:
+    clauses.append(f"{quote_ident(COLUMN_OTHER_MATCH)} = ?")
+    params.append(is_other_match)
 
 # removed
-clauses.append(f"{quote_ident(COLUMN_REMOVED)} = ?")
-params.append(is_removed)
+if is_removed is not None:
+    clauses.append(f"{quote_ident(COLUMN_REMOVED)} = ?")
+    params.append(is_removed)
 
 # date range
 clauses.append(f"CAST({quote_ident(COLUMN_PAYMENT_DATE)} AS DATE) BETWEEN ? AND ?")
