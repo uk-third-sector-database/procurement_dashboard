@@ -128,9 +128,14 @@ def prepare_parquet(in_fpath: Path, out_fpath: Path):
                 dset[column_name] = process_daterange_org_seen(dset[column_name])
                 dset = split_daterange_org_seen(dset)
             case "total_value_payments_to_org":
-                dset[column_name] = process_total_value_payments_to_org(dset[column_name])
+                # dset[column_name] = process_total_value_payments_to_org(dset[column_name])
+                # drop column because the aggregate needs to be recalculated for filters
+                dset = dset.drop(columns=[column_name])
+                print("- column dropped")
             case "total_number_payments_to_org":
-                dset[column_name] = process_total_number_payments_to_org(dset[column_name])
+                # dset[column_name] = process_total_number_payments_to_org(dset[column_name])
+                dset = dset.drop(columns=[column_name])
+                print("- column dropped")
             case "orgflag":
                 dset[column_name] = process_orgflag(dset[column_name])
             case "verifmatch":
@@ -443,6 +448,8 @@ def split_daterange_org_seen(dset: pd.DataFrame) -> pd.DataFrame:
 
 def process_total_value_payments_to_org(s: pd.Series) -> pd.Series:
     """Process the 'total_value_payments_to_org' column: replace newline characters with spaces.
+    OBSOLOTE: column is dropped because the aggregate needs to be recalculated for filters.
+    
     Args:
         s (pd.Series): Input pandas Series for the 'total_value_payments_to_org' column.
     Returns:
@@ -458,6 +465,8 @@ def process_total_value_payments_to_org(s: pd.Series) -> pd.Series:
 
 def process_total_number_payments_to_org(s: pd.Series) -> pd.Series:
     """Process the 'total_number_payments_to_org' column: replace newline characters with spaces.
+    OBSOLOTE: column is dropped because the aggregate needs to be recalculated for filters.
+
     Args:
         s (pd.Series): Input pandas Series for the 'total_number_payments_to_org' column.
     Returns:
