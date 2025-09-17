@@ -30,6 +30,8 @@ COLUMNS_TO_DISPLAY = [
     "Amount",
     "Supplier",
     "Payment date",
+    "Latitude",
+    "Longitude",
     "Total value payments",
     "Total payments",
     "Is spine?",
@@ -108,6 +110,28 @@ sources = (
         """
     )
     .fetchdf()[COLUMN_SOURCE]
+    .tolist()
+)
+
+COLUMN_LATITUDE = "Latitude"
+latitudes = (
+    con.execute(
+        f"""
+        SELECT DISTINCT {COLUMN_LATITUDE} FROM data ORDER BY 1
+        """
+    )
+    .fetchdf()[COLUMN_LATITUDE]
+    .tolist()
+)
+
+COLUMN_LONGITUDE = "Longitude"
+longitudes = (
+    con.execute(
+        f"""
+        SELECT DISTINCT {COLUMN_LONGITUDE} FROM data ORDER BY 1
+        """
+    )
+    .fetchdf()[COLUMN_LONGITUDE]
     .tolist()
 )
 
