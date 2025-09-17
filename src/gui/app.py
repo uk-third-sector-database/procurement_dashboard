@@ -33,6 +33,8 @@ COLUMNS_TO_DISPLAY = [
     "Total value payments",
     "Total payments",
     "Is spine?",
+    "Manual match to spine?",
+    "Other match to spine?",
     "Removed?",
     "Removal date"
 ]
@@ -134,14 +136,28 @@ COLUMN_SPINE = "Is spine?"
 is_spine = st.sidebar.toggle(
     COLUMN_SPINE, 
     value=True,
-    help="Choose value for the 'Is spine?' column."
+    help=f"Choose value for the '{COLUMN_SPINE}' column."
+)
+
+COLUMN_MANUAL_MATCH = "Manual match to spine?"
+is_manual_match = st.sidebar.toggle(
+    COLUMN_MANUAL_MATCH, 
+    value=True,
+    help=f"Choose value for the '{COLUMN_MANUAL_MATCH}' column."
+)
+
+COLUMN_OTHER_MATCH = "Other match to spine?"
+is_other_match = st.sidebar.toggle(
+    COLUMN_OTHER_MATCH, 
+    value=True,
+    help=f"Choose value for the '{COLUMN_OTHER_MATCH}' column."
 )
 
 COLUMN_REMOVED = "Removed?"
 is_removed = st.sidebar.toggle(
     COLUMN_REMOVED, 
     value=True,
-    help="Choose value for the 'Removed?' column."
+    help=f"Choose value for the '{COLUMN_REMOVED}' column."
 )
 
 date_cols = st.sidebar.columns([7, 1])
@@ -185,6 +201,14 @@ params.extend(selected_sources)
 # is spine
 clauses.append(f"{quote_ident(COLUMN_SPINE)} = ?")
 params.append(is_spine)
+
+# is manual match
+clauses.append(f"{quote_ident(COLUMN_MANUAL_MATCH)} = ?")
+params.append(is_manual_match)
+
+# is other match
+clauses.append(f"{quote_ident(COLUMN_OTHER_MATCH)} = ?")
+params.append(is_other_match)
 
 # removed
 clauses.append(f"{quote_ident(COLUMN_REMOVED)} = ?")
