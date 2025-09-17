@@ -32,13 +32,11 @@ COLUMNS_TO_DISPLAY = [
     "Payment date",
     "Latitude",
     "Longitude",
-    "Total value payments",
-    "Total payments",
     "Is spine?",
     "Manual match to spine?",
     "Other match to spine?",
     "Removed?",
-    "Removal date",
+    "Removal date"
 ]
 COLUMNS_TO_DISPLAY_SQL = ", ".join(quote_ident(c) for c in COLUMNS_TO_DISPLAY)
 
@@ -76,13 +74,6 @@ rel.create_view("data", replace=True)
 
 # build the sidebar display settings
 with st.sidebar.expander("Display settings", expanded=False):
-    sort_by = st.selectbox(
-        "Sort by",
-        options=["Total value payments", "Total payments"],
-        index=0,
-        help="Select the column to sort by.",
-    )
-
     n_displayed_records = st.number_input(
         "Records to display",
         min_value=10,
@@ -90,14 +81,6 @@ with st.sidebar.expander("Display settings", expanded=False):
         value=500,
         step=10,
         help="Select the number of records to display.",
-    )
-
-    order = st.radio(
-        "Order",
-        options=["DESC", "ASC"],
-        index=0,
-        horizontal=True,
-        help="Select the order to sort by.",
     )
 
 
@@ -255,32 +238,39 @@ WHERE_CLAUSE = " AND ".join(clauses) if clauses else "TRUE"
 # get stats for the filtered dataset
 n_records = con.execute(f"SELECT COUNT(*) FROM data WHERE {WHERE_CLAUSE}", params).fetchone()[0]
 
-# get the dataset to display
-dset = con.execute(
+# get the raw dataset to display as top records by Amount
+sort_by_raw = "Amount"
+order = "DESC"
+dset_raw = con.execute(
     f"""
     SELECT {COLUMNS_TO_DISPLAY_SQL}
     FROM data
     WHERE {WHERE_CLAUSE}
-    ORDER BY {quote_ident(sort_by)} {order} {NULLS}
+    ORDER BY {quote_ident(sort_by_raw)} {order} {NULLS}
     LIMIT ?
     """,
     params + [n_displayed_records],
 ).fetchdf()
 
-if dset.empty:
+if dset_raw.empty:
     st.warning("No records available for the selected filters.")
     st.stop()
 
 st.metric("Selected records", f"{n_records:,}")
 
-st.write(f"""
-The **{n_displayed_records}** records with the **{TEXT_MAPPING[order]}** values for **{sort_by}**
-""")
+tabs = st.tabs(["Raw data"])
 
-# format the columns to display
-date_cols = ["Payment date", "Org seen - min date", "Org seen - max date"]
-for col in date_cols:
-    if col in dset.columns and pd.api.types.is_datetime64_any_dtype(dset[col]):
-        dset[col] = dset[col].dt.strftime("%d/%m/%Y")
-dset_styled = dset.style.format(COLUMN_TO_DISPLAY_STYLES)
-st.dataframe(dset_styled, use_container_width=True, hide_index=True)
+with tabs[0]:
+    if n_records > n_displayed_records:
+        # more records available than displayed, inform the user about the display selection made
+        st.write(f"""
+        The **{n_displayed_records}** records with the **{TEXT_MAPPING[order]}** values for **{sort_by_raw}**
+        """)
+
+    # format the columns to display
+    date_cols = ["Payment date", "Org seen - min date", "Org seen - max date"]
+    for col in date_cols:
+        if col in dset_raw.columns and pd.api.types.is_datetime64_any_dtype(dset_raw[col]):
+            dset_raw[col] = dset_raw[col].dt.strftime("%d/%m/%Y")
+    dset_styled = dset_raw.style.format(COLUMN_TO_DISPLAY_STYLES)
+    st.dataframe(dset_styled, use_container_width=True, hide_index=True)
