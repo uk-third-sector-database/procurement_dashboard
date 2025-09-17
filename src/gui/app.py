@@ -33,6 +33,8 @@ COLUMNS_TO_DISPLAY = [
     "Total value payments",
     "Total payments",
     "Is spine?",
+    "Removed?",
+    "Removal date"
 ]
 COLUMNS_TO_DISPLAY_SQL = ", ".join(quote_ident(c) for c in COLUMNS_TO_DISPLAY)
 
@@ -135,6 +137,13 @@ is_spine = st.sidebar.toggle(
     help="Choose value for the 'Is spine?' column."
 )
 
+COLUMN_REMOVED = "Removed?"
+is_removed = st.sidebar.toggle(
+    COLUMN_REMOVED, 
+    value=True,
+    help="Choose value for the 'Removed?' column."
+)
+
 date_cols = st.sidebar.columns([7, 1])
 # two lines to vertically align the button with the date input
 date_cols[1].markdown(" ")
@@ -176,6 +185,10 @@ params.extend(selected_sources)
 # is spine
 clauses.append(f"{quote_ident(COLUMN_SPINE)} = ?")
 params.append(is_spine)
+
+# removed
+clauses.append(f"{quote_ident(COLUMN_REMOVED)} = ?")
+params.append(is_removed)
 
 # date range
 clauses.append(f"CAST({quote_ident(COLUMN_PAYMENT_DATE)} AS DATE) BETWEEN ? AND ?")

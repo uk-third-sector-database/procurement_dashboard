@@ -56,6 +56,7 @@ COLUMN_NAMES = {
     "city": "City",
     "registerdate": "Registration date",
     "removeddate": "Removal date",
+    "removed": "Removed?",
     "latitude": "Latitude",
     "longitude": "Longitude",
     "geometry": "Geometry",
@@ -162,6 +163,7 @@ def prepare_parquet(in_fpath: Path, out_fpath: Path):
                 dset[column_name] = process_registerdate(dset[column_name])
             case "removeddate":
                 dset[column_name] = process_removeddate(dset[column_name])
+                dset['removed'] = dset[column_name].notna()
             case "latitude":
                 dset[column_name] = process_latitude(dset[column_name])
             case "longitude":
