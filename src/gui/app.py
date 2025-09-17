@@ -18,32 +18,46 @@ def quote_ident(name: str) -> str:
 
 TEXT_EITHER = "Do not apply filter"
 
-TEXT_MAPPING = {
-    "DESC": "largest",
-    "ASC": "lowest",
-}
-
 NULLS = "NULLS LAST"
+
+# data columns
+COLUMN_SOURCE = "Source"
+COLUMN_DEPARTMENT = "Department"
+COLUMN_AMOUNT = "Amount"
+COLUMN_SUPPLIER = "Supplier"
+COLUMN_PAYMENT_DATE = "Payment date"
+COLUMN_LATITUDE = "Latitude"
+COLUMN_LONGITUDE = "Longitude"
+COLUMN_SPINE = "Is spine?"
+COLUMN_MANUAL_MATCH = "Manual match to spine?"
+COLUMN_OTHER_MATCH = "Other match to spine?"
+COLUMN_REMOVED = "Removed?"
+COLUMN_REMOVAL_DATE = "Removal date"
+
+# produced columns
+COLUMN_TOTAL_VALUE_PAYMENTS = "Total value payments"
+COLUMN_TOTAL_PAYMENTS = "Total payments"
+
 COLUMNS_TO_DISPLAY = [
-    "Source",
-    "Department",
-    "Amount",
-    "Supplier",
-    "Payment date",
-    "Latitude",
-    "Longitude",
-    "Is spine?",
-    "Manual match to spine?",
-    "Other match to spine?",
-    "Removed?",
-    "Removal date"
+    COLUMN_SOURCE,
+    COLUMN_DEPARTMENT,
+    COLUMN_AMOUNT,
+    COLUMN_SUPPLIER,
+    COLUMN_PAYMENT_DATE,
+    COLUMN_LATITUDE,
+    COLUMN_LONGITUDE,
+    COLUMN_SPINE,
+    COLUMN_MANUAL_MATCH,
+    COLUMN_OTHER_MATCH,
+    COLUMN_REMOVED,
+    COLUMN_REMOVAL_DATE,
 ]
 COLUMNS_TO_DISPLAY_SQL = ", ".join(quote_ident(c) for c in COLUMNS_TO_DISPLAY)
 
 COLUMN_TO_DISPLAY_STYLES = {
-    "Amount": "{:,.0f}",
-    "Total value payments": "{:,.0f}",
-    "Total payments": "{:,.0f}",
+    COLUMN_AMOUNT: "{:,.0f}",
+    COLUMN_TOTAL_VALUE_PAYMENTS: "{:,.0f}",
+    COLUMN_TOTAL_PAYMENTS: "{:,.0f}",
 }
 
 st.set_page_config(
@@ -85,7 +99,6 @@ with st.sidebar.expander("Display settings", expanded=False):
 
 
 # get data from the file to build various widgets
-COLUMN_SOURCE = "Source"
 sources = (
     con.execute(
         f"""
@@ -96,7 +109,6 @@ sources = (
     .tolist()
 )
 
-COLUMN_LATITUDE = "Latitude"
 latitudes = (
     con.execute(
         f"""
@@ -107,7 +119,6 @@ latitudes = (
     .tolist()
 )
 
-COLUMN_LONGITUDE = "Longitude"
 longitudes = (
     con.execute(
         f"""
@@ -118,7 +129,6 @@ longitudes = (
     .tolist()
 )
 
-COLUMN_PAYMENT_DATE = "Payment date"
 KEY_PAYMENT_DATE_RANGE = f"{COLUMN_PAYMENT_DATE}_range"
 dmin, dmax = con.execute(
     f"""
@@ -139,7 +149,7 @@ selected_sources = st.sidebar.multiselect(
     help="Select multiple sources to filter the dataset.",
 )
 
-COLUMN_SPINE = "Is spine?"
+
 is_spine = st.sidebar.selectbox(
     COLUMN_SPINE,
     options=[None, True, False],
@@ -147,7 +157,6 @@ is_spine = st.sidebar.selectbox(
     help=f"Choose value for the '{COLUMN_SPINE}' column.",
 )
 
-COLUMN_MANUAL_MATCH = "Manual match to spine?"
 is_manual_match = st.sidebar.selectbox(
     COLUMN_MANUAL_MATCH,
     options=[None, True, False],
@@ -155,7 +164,6 @@ is_manual_match = st.sidebar.selectbox(
     help=f"Choose value for the '{COLUMN_MANUAL_MATCH}' column.",
 )
 
-COLUMN_OTHER_MATCH = "Other match to spine?"
 is_other_match = st.sidebar.selectbox(
     COLUMN_OTHER_MATCH,
     options=[None, True, False],
@@ -163,7 +171,6 @@ is_other_match = st.sidebar.selectbox(
     help=f"Choose value for the '{COLUMN_OTHER_MATCH}' column.",
 )
 
-COLUMN_REMOVED = "Removed?"
 is_removed = st.sidebar.selectbox(
     COLUMN_REMOVED,
     options=[None, True, False],
@@ -238,15 +245,17 @@ WHERE_CLAUSE = " AND ".join(clauses) if clauses else "TRUE"
 # get stats for the filtered dataset
 n_records = con.execute(f"SELECT COUNT(*) FROM data WHERE {WHERE_CLAUSE}", params).fetchone()[0]
 
+n_suppliers = con.execute(
+    f"SELECT COUNT(DISTINCT {quote_ident(COLUMN_SUPPLIER)}) FROM data WHERE {WHERE_CLAUSE}", params
+).fetchone()[0]
+
 # get the raw dataset to display as top records by Amount
-sort_by_raw = "Amount"
-order = "DESC"
 dset_raw = con.execute(
     f"""
     SELECT {COLUMNS_TO_DISPLAY_SQL}
     FROM data
     WHERE {WHERE_CLAUSE}
-    ORDER BY {quote_ident(sort_by_raw)} {order} {NULLS}
+    ORDER BY {quote_ident(COLUMN_AMOUNT)} DESC {NULLS}
     LIMIT ?
     """,
     params + [n_displayed_records],
@@ -256,15 +265,17 @@ if dset_raw.empty:
     st.warning("No records available for the selected filters.")
     st.stop()
 
-st.metric("Selected records", f"{n_records:,}")
+cols_metrics = st.columns(2)
+cols_metrics[0].metric("Transactions", f"{n_records:,}")
+cols_metrics[1].metric("Suppliers", f"{n_suppliers:,}")
 
-tabs = st.tabs(["Raw data"])
+tabs_views = st.tabs(["Raw data", "Aggregates by supplier"])
 
-with tabs[0]:
+with tabs_views[0]:
     if n_records > n_displayed_records:
         # more records available than displayed, inform the user about the display selection made
         st.write(f"""
-        The **{n_displayed_records}** records with the **{TEXT_MAPPING[order]}** values for **{sort_by_raw}**
+        The top **{n_displayed_records}** selected transactions by **{COLUMN_AMOUNT}**
         """)
 
     # format the columns to display
@@ -274,3 +285,75 @@ with tabs[0]:
             dset_raw[col] = dset_raw[col].dt.strftime("%d/%m/%Y")
     dset_styled = dset_raw.style.format(COLUMN_TO_DISPLAY_STYLES)
     st.dataframe(dset_styled, use_container_width=True, hide_index=True)
+
+with tabs_views[1]:
+    tabs_suppliers = st.tabs(["Ranked by total value of payments", "Ranked by number of payments"])
+    with tabs_suppliers[0]:
+        dset_suppliers = con.execute(
+            f"""
+                WITH filtered AS (
+                    SELECT {COLUMN_SUPPLIER},
+                            {COLUMN_AMOUNT}
+                FROM data
+                WHERE {WHERE_CLAUSE}
+                ),
+                agg AS (
+                    SELECT
+                        {COLUMN_SUPPLIER},
+                        SUM({COLUMN_AMOUNT}) AS {quote_ident(COLUMN_TOTAL_VALUE_PAYMENTS)},
+                        COUNT(*) AS {quote_ident(COLUMN_TOTAL_PAYMENTS)}
+                    FROM filtered
+                    GROUP BY {COLUMN_SUPPLIER}
+                )
+                SELECT *
+                FROM agg
+                ORDER BY {quote_ident(COLUMN_TOTAL_VALUE_PAYMENTS)} DESC NULLS LAST
+                LIMIT ?
+            """,
+            params + [int(n_displayed_records)],
+        ).fetchdf()
+
+        if dset_suppliers.shape[0] < n_suppliers:
+            st.write(
+                f"""
+                    The top **{dset_suppliers.shape[0]}** suppliers by
+                    **{COLUMN_TOTAL_VALUE_PAYMENTS}**
+                """
+            )
+        dset_styled = dset_suppliers.style.format(COLUMN_TO_DISPLAY_STYLES)
+        st.dataframe(dset_styled, use_container_width=True, hide_index=True)
+
+    with tabs_suppliers[1]:
+        dset_suppliers = con.execute(
+            f"""
+                WITH filtered AS (
+                    SELECT {COLUMN_SUPPLIER},
+                            {COLUMN_AMOUNT}
+                FROM data
+                WHERE {WHERE_CLAUSE}
+                ),
+                agg AS (
+                    SELECT
+                        {COLUMN_SUPPLIER},
+                        SUM({COLUMN_AMOUNT}) AS {quote_ident(COLUMN_TOTAL_VALUE_PAYMENTS)},
+                        COUNT(*) AS {quote_ident(COLUMN_TOTAL_PAYMENTS)}
+                    FROM filtered
+                    GROUP BY {COLUMN_SUPPLIER}
+                )
+                SELECT *
+                FROM agg
+                ORDER BY {quote_ident(COLUMN_TOTAL_PAYMENTS)} DESC NULLS LAST
+                LIMIT ?
+            """,
+            params + [int(n_displayed_records)],
+        ).fetchdf()
+
+        if dset_suppliers.shape[0] < n_suppliers:
+            st.write(
+                f"""
+                    The top **{dset_suppliers.shape[0]}** suppliers by
+                    **{COLUMN_TOTAL_PAYMENTS}**
+                """
+            )
+        dset_styled = dset_suppliers.style.format(COLUMN_TO_DISPLAY_STYLES)
+        st.dataframe(dset_styled, use_container_width=True, hide_index=True)
