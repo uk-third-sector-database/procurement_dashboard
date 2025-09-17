@@ -128,6 +128,13 @@ selected_sources = st.sidebar.multiselect(
     help="Select multiple sources to filter the dataset.",
 )
 
+COLUMN_SPINE = "Is spine?"
+is_spine = st.sidebar.toggle(
+    COLUMN_SPINE, 
+    value=True,
+    help="Choose value for the 'Is spine?' column."
+)
+
 date_cols = st.sidebar.columns([7, 1])
 # two lines to vertically align the button with the date input
 date_cols[1].markdown(" ")
@@ -165,6 +172,10 @@ clauses, params = [], []
 PLACEHOLDERS = ", ".join("?" for _ in selected_sources)
 clauses.append(f"{quote_ident(COLUMN_SOURCE)} IN ({PLACEHOLDERS})")
 params.extend(selected_sources)
+
+# is spine
+clauses.append(f"{quote_ident(COLUMN_SPINE)} = ?")
+params.append(is_spine)
 
 # date range
 clauses.append(f"CAST({quote_ident(COLUMN_PAYMENT_DATE)} AS DATE) BETWEEN ? AND ?")
