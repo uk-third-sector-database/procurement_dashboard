@@ -12,6 +12,8 @@ from pathlib import Path
 
 import pandas as pd
 
+import utils.columns as cols
+
 PARQUET_COMPRESSION = "zstd"
 ENGINE = "pyarrow"
 DAY_FIRST = True
@@ -26,12 +28,12 @@ MAX_YEAR_SEEN = 2026
 
 COLUMN_NAMES = {
     "index": "Index",
-    "data_source": "Source",
-    "dept": "Department",
-    "amount": "Amount",
-    "date_payment": "Payment date",
-    "year_payment": "Payment year",
-    "supplier": "Supplier",
+    "data_source": cols.SOURCE,
+    "dept": cols.DEPARTMENT,
+    "amount": cols.AMOUNT,
+    "date_payment": cols.PAYMENT_DATE,
+    "year_payment": cols.PAYMENT_YEAR,
+    "supplier": cols.SUPPLIER,
     "normalized_supplier": "Supplier (norm)",
     "contractsfinder_awardedtovcse": "CF -> VCSE",
     "contractsfinder_region": "CF region",
@@ -44,10 +46,10 @@ COLUMN_NAMES = {
     "verifcode": "Verification code",
     "verifnote": "Verification note",
     "verifmatch": "Match type",
-    "manual_match_to_spine": "Manual match to spine?",
-    "other_exact_match": "Other match to spine?",
+    "manual_match_to_spine": cols.MANUAL_MATCH,
+    "other_exact_match": cols.OTHER_MATCH,
     "isspine_manual": "Is spine manual?",
-    "isspine": "Is spine?",
+    "isspine": cols.SPINE,
     "longmatch": "Long match",
     "uid": "Spine uid",
     "organisationname": "Organisation",
@@ -55,10 +57,10 @@ COLUMN_NAMES = {
     "postcode": "Postcode",
     "city": "City",
     "registerdate": "Registration date",
-    "removeddate": "Removal date",
-    "removed": "Removed?",
-    "latitude": "Latitude",
-    "longitude": "Longitude",
+    "removeddate": cols.REMOVAL_DATE,
+    "removed": cols.REMOVED,
+    "latitude": cols.LATITUDE,
+    "longitude": cols.LONGITUDE,
     "geometry": "Geometry",
     "nuts_id_0": "NUTS ID 0",
     "nuts_name_0": "NUTS Name 0",
@@ -449,7 +451,7 @@ def split_daterange_org_seen(dset: pd.DataFrame) -> pd.DataFrame:
 def process_total_value_payments_to_org(s: pd.Series) -> pd.Series:
     """Process the 'total_value_payments_to_org' column: replace newline characters with spaces.
     OBSOLOTE: column is dropped because the aggregate needs to be recalculated for filters.
-    
+
     Args:
         s (pd.Series): Input pandas Series for the 'total_value_payments_to_org' column.
     Returns:

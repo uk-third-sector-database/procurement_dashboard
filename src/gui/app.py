@@ -7,6 +7,8 @@ import pandas as pd
 import sidebar
 import streamlit as st
 
+import utils.columns as cols
+
 
 def quote_ident(name: str) -> str:
     """
@@ -20,44 +22,26 @@ TEXT_EITHER = "Do not apply filter"
 
 NULLS = "NULLS LAST"
 
-# data columns
-COLUMN_SOURCE = "Source"
-COLUMN_DEPARTMENT = "Department"
-COLUMN_AMOUNT = "Amount"
-COLUMN_SUPPLIER = "Supplier"
-COLUMN_PAYMENT_DATE = "Payment date"
-COLUMN_LATITUDE = "Latitude"
-COLUMN_LONGITUDE = "Longitude"
-COLUMN_SPINE = "Is spine?"
-COLUMN_MANUAL_MATCH = "Manual match to spine?"
-COLUMN_OTHER_MATCH = "Other match to spine?"
-COLUMN_REMOVED = "Removed?"
-COLUMN_REMOVAL_DATE = "Removal date"
-
-# produced columns
-COLUMN_TOTAL_VALUE_PAYMENTS = "Total value payments"
-COLUMN_TOTAL_PAYMENTS = "Total payments"
-
 COLUMNS_TO_DISPLAY = [
-    COLUMN_SOURCE,
-    COLUMN_DEPARTMENT,
-    COLUMN_AMOUNT,
-    COLUMN_SUPPLIER,
-    COLUMN_PAYMENT_DATE,
-    COLUMN_LATITUDE,
-    COLUMN_LONGITUDE,
-    COLUMN_SPINE,
-    COLUMN_MANUAL_MATCH,
-    COLUMN_OTHER_MATCH,
-    COLUMN_REMOVED,
-    COLUMN_REMOVAL_DATE,
+    cols.SOURCE,
+    cols.DEPARTMENT,
+    cols.AMOUNT,
+    cols.SUPPLIER,
+    cols.PAYMENT_DATE,
+    cols.LATITUDE,
+    cols.LONGITUDE,
+    cols.SPINE,
+    cols.MANUAL_MATCH,
+    cols.OTHER_MATCH,
+    cols.REMOVED,
+    cols.REMOVAL_DATE,
 ]
 COLUMNS_TO_DISPLAY_SQL = ", ".join(quote_ident(c) for c in COLUMNS_TO_DISPLAY)
 
-COLUMN_TO_DISPLAY_STYLES = {
-    COLUMN_AMOUNT: "{:,.0f}",
-    COLUMN_TOTAL_VALUE_PAYMENTS: "{:,.0f}",
-    COLUMN_TOTAL_PAYMENTS: "{:,.0f}",
+COLUMNS_TO_DISPLAY_STYLES = {
+    cols.AMOUNT: "{:,.0f}",
+    cols.TOTAL_VALUE_PAYMENTS: "{:,.0f}",
+    cols.TOTAL_PAYMENTS: "{:,.0f}",
 }
 
 st.set_page_config(
@@ -102,39 +86,39 @@ with st.sidebar.expander("Display settings", expanded=False):
 sources = (
     con.execute(
         f"""
-        SELECT DISTINCT {COLUMN_SOURCE} FROM data ORDER BY 1
+        SELECT DISTINCT {cols.SOURCE} FROM data ORDER BY 1
         """
     )
-    .fetchdf()[COLUMN_SOURCE]
+    .fetchdf()[cols.SOURCE]
     .tolist()
 )
 
 latitudes = (
     con.execute(
         f"""
-        SELECT DISTINCT {COLUMN_LATITUDE} FROM data ORDER BY 1
+        SELECT DISTINCT {cols.LATITUDE} FROM data ORDER BY 1
         """
     )
-    .fetchdf()[COLUMN_LATITUDE]
+    .fetchdf()[cols.LATITUDE]
     .tolist()
 )
 
 longitudes = (
     con.execute(
         f"""
-        SELECT DISTINCT {COLUMN_LONGITUDE} FROM data ORDER BY 1
+        SELECT DISTINCT {cols.LONGITUDE} FROM data ORDER BY 1
         """
     )
-    .fetchdf()[COLUMN_LONGITUDE]
+    .fetchdf()[cols.LONGITUDE]
     .tolist()
 )
 
-KEY_PAYMENT_DATE_RANGE = f"{COLUMN_PAYMENT_DATE}_range"
+KEY_PAYMENT_DATE_RANGE = f"{cols.PAYMENT_DATE}_range"
 dmin, dmax = con.execute(
     f"""
     SELECT 
-    MIN(CAST({quote_ident(COLUMN_PAYMENT_DATE)} AS DATE)),
-    MAX(CAST({quote_ident(COLUMN_PAYMENT_DATE)} AS DATE))
+    MIN(CAST({quote_ident(cols.PAYMENT_DATE)} AS DATE)),
+    MAX(CAST({quote_ident(cols.PAYMENT_DATE)} AS DATE))
     FROM data
     """
 ).fetchone()
@@ -143,7 +127,7 @@ if KEY_PAYMENT_DATE_RANGE not in st.session_state:
     st.session_state[KEY_PAYMENT_DATE_RANGE] = (dmin, dmax)
 
 selected_sources = st.sidebar.multiselect(
-    COLUMN_SOURCE,
+    cols.SOURCE,
     options=sources,
     default=sources,
     help="Select multiple sources to filter the dataset.",
@@ -151,31 +135,31 @@ selected_sources = st.sidebar.multiselect(
 
 
 is_spine = st.sidebar.selectbox(
-    COLUMN_SPINE,
+    cols.SPINE,
     options=[None, True, False],
     format_func=lambda x: TEXT_EITHER if x is None else str(x),
-    help=f"Choose value for the '{COLUMN_SPINE}' column.",
+    help=f"Choose value for the '{cols.SPINE}' column.",
 )
 
 is_manual_match = st.sidebar.selectbox(
-    COLUMN_MANUAL_MATCH,
+    cols.MANUAL_MATCH,
     options=[None, True, False],
     format_func=lambda x: TEXT_EITHER if x is None else str(x),
-    help=f"Choose value for the '{COLUMN_MANUAL_MATCH}' column.",
+    help=f"Choose value for the '{cols.MANUAL_MATCH}' column.",
 )
 
 is_other_match = st.sidebar.selectbox(
-    COLUMN_OTHER_MATCH,
+    cols.OTHER_MATCH,
     options=[None, True, False],
     format_func=lambda x: TEXT_EITHER if x is None else str(x),
-    help=f"Choose value for the '{COLUMN_OTHER_MATCH}' column.",
+    help=f"Choose value for the '{cols.OTHER_MATCH}' column.",
 )
 
 is_removed = st.sidebar.selectbox(
-    COLUMN_REMOVED,
+    cols.REMOVED,
     options=[None, True, False],
     format_func=lambda x: TEXT_EITHER if x is None else str(x),
-    help=f"Choose value for the '{COLUMN_REMOVED}' column.",
+    help=f"Choose value for the '{cols.REMOVED}' column.",
 )
 
 date_cols = st.sidebar.columns([7, 1])
@@ -186,7 +170,7 @@ if date_cols[1].button("↺", help="Reset date range"):
     st.session_state[KEY_PAYMENT_DATE_RANGE] = (dmin, dmax)
 # value not given because it is set in the session state KEY_PAYMENT_DATE_RANGE
 date_range = date_cols[0].date_input(
-    COLUMN_PAYMENT_DATE,
+    cols.PAYMENT_DATE,
     min_value=dmin,
     max_value=dmax,
     format="DD/MM/YYYY",
@@ -213,31 +197,31 @@ clauses, params = [], []
 
 # source
 PLACEHOLDERS = ", ".join("?" for _ in selected_sources)
-clauses.append(f"{quote_ident(COLUMN_SOURCE)} IN ({PLACEHOLDERS})")
+clauses.append(f"{quote_ident(cols.SOURCE)} IN ({PLACEHOLDERS})")
 params.extend(selected_sources)
 
 # is spine
 if is_spine is not None:
-    clauses.append(f"{quote_ident(COLUMN_SPINE)} = ?")
+    clauses.append(f"{quote_ident(cols.SPINE)} = ?")
     params.append(is_spine)
 
 # is manual match
 if is_manual_match is not None:
-    clauses.append(f"{quote_ident(COLUMN_MANUAL_MATCH)} = ?")
+    clauses.append(f"{quote_ident(cols.MANUAL_MATCH)} = ?")
     params.append(is_manual_match)
 
 # is other match
 if is_other_match is not None:
-    clauses.append(f"{quote_ident(COLUMN_OTHER_MATCH)} = ?")
+    clauses.append(f"{quote_ident(cols.OTHER_MATCH)} = ?")
     params.append(is_other_match)
 
 # removed
 if is_removed is not None:
-    clauses.append(f"{quote_ident(COLUMN_REMOVED)} = ?")
+    clauses.append(f"{quote_ident(cols.REMOVED)} = ?")
     params.append(is_removed)
 
 # date range
-clauses.append(f"CAST({quote_ident(COLUMN_PAYMENT_DATE)} AS DATE) BETWEEN ? AND ?")
+clauses.append(f"CAST({quote_ident(cols.PAYMENT_DATE)} AS DATE) BETWEEN ? AND ?")
 params.extend(st.session_state[KEY_PAYMENT_DATE_RANGE])
 
 WHERE_CLAUSE = " AND ".join(clauses) if clauses else "TRUE"
@@ -246,7 +230,7 @@ WHERE_CLAUSE = " AND ".join(clauses) if clauses else "TRUE"
 n_records = con.execute(f"SELECT COUNT(*) FROM data WHERE {WHERE_CLAUSE}", params).fetchone()[0]
 
 n_suppliers = con.execute(
-    f"SELECT COUNT(DISTINCT {quote_ident(COLUMN_SUPPLIER)}) FROM data WHERE {WHERE_CLAUSE}", params
+    f"SELECT COUNT(DISTINCT {quote_ident(cols.SUPPLIER)}) FROM data WHERE {WHERE_CLAUSE}", params
 ).fetchone()[0]
 
 # get the raw dataset to display as top records by Amount
@@ -255,7 +239,7 @@ dset_raw = con.execute(
     SELECT {COLUMNS_TO_DISPLAY_SQL}
     FROM data
     WHERE {WHERE_CLAUSE}
-    ORDER BY {quote_ident(COLUMN_AMOUNT)} DESC {NULLS}
+    ORDER BY {quote_ident(cols.AMOUNT)} DESC {NULLS}
     LIMIT ?
     """,
     params + [n_displayed_records],
@@ -275,7 +259,7 @@ with tabs_views[0]:
     if n_records > n_displayed_records:
         # more records available than displayed, inform the user about the display selection made
         st.write(f"""
-        The top **{n_displayed_records}** selected transactions by **{COLUMN_AMOUNT}**
+        The top **{n_displayed_records}** selected transactions by **{cols.AMOUNT}**
         """)
 
     # format the columns to display
@@ -283,7 +267,7 @@ with tabs_views[0]:
     for col in date_cols:
         if col in dset_raw.columns and pd.api.types.is_datetime64_any_dtype(dset_raw[col]):
             dset_raw[col] = dset_raw[col].dt.strftime("%d/%m/%Y")
-    dset_styled = dset_raw.style.format(COLUMN_TO_DISPLAY_STYLES)
+    dset_styled = dset_raw.style.format(COLUMNS_TO_DISPLAY_STYLES)
     st.dataframe(dset_styled, use_container_width=True, hide_index=True)
 
 with tabs_views[1]:
@@ -292,22 +276,22 @@ with tabs_views[1]:
         dset_suppliers = con.execute(
             f"""
                 WITH filtered AS (
-                    SELECT {COLUMN_SUPPLIER},
-                            {COLUMN_AMOUNT}
+                    SELECT {cols.SUPPLIER},
+                            {cols.AMOUNT}
                 FROM data
                 WHERE {WHERE_CLAUSE}
                 ),
                 agg AS (
                     SELECT
-                        {COLUMN_SUPPLIER},
-                        SUM({COLUMN_AMOUNT}) AS {quote_ident(COLUMN_TOTAL_VALUE_PAYMENTS)},
-                        COUNT(*) AS {quote_ident(COLUMN_TOTAL_PAYMENTS)}
+                        {cols.SUPPLIER},
+                        SUM({cols.AMOUNT}) AS {quote_ident(cols.TOTAL_VALUE_PAYMENTS)},
+                        COUNT(*) AS {quote_ident(cols.TOTAL_PAYMENTS)}
                     FROM filtered
-                    GROUP BY {COLUMN_SUPPLIER}
+                    GROUP BY {cols.SUPPLIER}
                 )
                 SELECT *
                 FROM agg
-                ORDER BY {quote_ident(COLUMN_TOTAL_VALUE_PAYMENTS)} DESC NULLS LAST
+                ORDER BY {quote_ident(cols.TOTAL_VALUE_PAYMENTS)} DESC NULLS LAST
                 LIMIT ?
             """,
             params + [int(n_displayed_records)],
@@ -317,32 +301,32 @@ with tabs_views[1]:
             st.write(
                 f"""
                     The top **{dset_suppliers.shape[0]}** suppliers by
-                    **{COLUMN_TOTAL_VALUE_PAYMENTS}**
+                    **{cols.TOTAL_VALUE_PAYMENTS}**
                 """
             )
-        dset_styled = dset_suppliers.style.format(COLUMN_TO_DISPLAY_STYLES)
+        dset_styled = dset_suppliers.style.format(COLUMNS_TO_DISPLAY_STYLES)
         st.dataframe(dset_styled, use_container_width=True, hide_index=True)
 
     with tabs_suppliers[1]:
         dset_suppliers = con.execute(
             f"""
                 WITH filtered AS (
-                    SELECT {COLUMN_SUPPLIER},
-                            {COLUMN_AMOUNT}
+                    SELECT {cols.SUPPLIER},
+                            {cols.AMOUNT}
                 FROM data
                 WHERE {WHERE_CLAUSE}
                 ),
                 agg AS (
                     SELECT
-                        {COLUMN_SUPPLIER},
-                        SUM({COLUMN_AMOUNT}) AS {quote_ident(COLUMN_TOTAL_VALUE_PAYMENTS)},
-                        COUNT(*) AS {quote_ident(COLUMN_TOTAL_PAYMENTS)}
+                        {cols.SUPPLIER},
+                        SUM({cols.AMOUNT}) AS {quote_ident(cols.TOTAL_VALUE_PAYMENTS)},
+                        COUNT(*) AS {quote_ident(cols.TOTAL_PAYMENTS)}
                     FROM filtered
-                    GROUP BY {COLUMN_SUPPLIER}
+                    GROUP BY {cols.SUPPLIER}
                 )
                 SELECT *
                 FROM agg
-                ORDER BY {quote_ident(COLUMN_TOTAL_PAYMENTS)} DESC NULLS LAST
+                ORDER BY {quote_ident(cols.TOTAL_PAYMENTS)} DESC NULLS LAST
                 LIMIT ?
             """,
             params + [int(n_displayed_records)],
@@ -352,8 +336,8 @@ with tabs_views[1]:
             st.write(
                 f"""
                     The top **{dset_suppliers.shape[0]}** suppliers by
-                    **{COLUMN_TOTAL_PAYMENTS}**
+                    **{cols.TOTAL_PAYMENTS}**
                 """
             )
-        dset_styled = dset_suppliers.style.format(COLUMN_TO_DISPLAY_STYLES)
+        dset_styled = dset_suppliers.style.format(COLUMNS_TO_DISPLAY_STYLES)
         st.dataframe(dset_styled, use_container_width=True, hide_index=True)
