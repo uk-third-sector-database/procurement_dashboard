@@ -27,5 +27,12 @@ pdm run ruff check <file.py>
 
 Run the streamlit app
 ```bash
-pdm run streamlit run src/gui/Home.py
+pdm run streamlit run src/gui/app.py
 ```
+
+For a local run the prepared dataset has to be available in `data/processed/dataset.parquet`. If not already done, run the data processing script
+```bash
+pdm run python src/processing/prepare_parquet.py data/raw/final_procurement_dataset.csv data/processed/dataset.parquet
+```
+
+This expects the raw dataset to be available in `data/raw/final_procurement_dataset.csv`. 
