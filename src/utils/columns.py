@@ -16,5 +16,5 @@ REMOVED = "Removed?"
 REMOVAL_DATE = "Removal date"
 
 # calculated columns
-TOTAL_VALUE_PAYMENTS = "Total value payments"
-TOTAL_PAYMENTS = "Total payments"
+TOTAL_VALUE_PAYMENTS = "Total amount"
+TOTAL_PAYMENTS = "Total transactions"

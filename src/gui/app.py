@@ -4,6 +4,7 @@ from pathlib import Path
 
 import duckdb
 import pandas as pd
+import plotly.express as px
 import sidebar
 import streamlit as st
 
@@ -234,9 +235,7 @@ n_suppliers = con.execute(
 ).fetchone()[0]
 
 total_amount = con.execute(
-    f"SELECT SUM({quote_ident(cols.AMOUNT)}) "
-    f"FROM data WHERE {WHERE_CLAUSE}",
-    params
+    f"SELECT SUM({quote_ident(cols.AMOUNT)}) FROM data WHERE {WHERE_CLAUSE}", params
 ).fetchone()[0]
 
 # get the raw dataset to display as top records by Amount
@@ -260,7 +259,7 @@ cols_metrics[0].metric("Transactions", f"{n_records:,}")
 cols_metrics[1].metric("Suppliers", f"{n_suppliers:,}")
 cols_metrics[2].metric("Total amount", f"{total_amount:,.0f}")
 
-tabs_views = st.tabs(["Raw data", "Aggregates by supplier"])
+tabs_views = st.tabs(["Raw data", "Aggregates by supplier", "Timecourse"])
 
 with tabs_views[0]:
     if n_records > n_displayed_records:
@@ -278,7 +277,9 @@ with tabs_views[0]:
     st.dataframe(dset_styled, use_container_width=True, hide_index=True)
 
 with tabs_views[1]:
-    tabs_suppliers = st.tabs(["Ranked by total value of payments", "Ranked by number of payments"])
+    tabs_suppliers = st.tabs(
+        [f"Ranked by {cols.TOTAL_VALUE_PAYMENTS}", f"Ranked by {cols.TOTAL_PAYMENTS}"]
+    )
     with tabs_suppliers[0]:
         dset_suppliers = con.execute(
             f"""
@@ -319,7 +320,7 @@ with tabs_views[1]:
             f"""
                 WITH filtered AS (
                     SELECT {cols.SUPPLIER},
-                            {cols.AMOUNT}
+                           {cols.AMOUNT}
                 FROM data
                 WHERE {WHERE_CLAUSE}
                 ),
@@ -348,3 +349,39 @@ with tabs_views[1]:
             )
         dset_styled = dset_suppliers.style.format(COLUMNS_TO_DISPLAY_STYLES)
         st.dataframe(dset_styled, use_container_width=True, hide_index=True)
+with tabs_views[2]:
+    COLUMN_DATE = "Date"
+    COLUMN_TRANSACTIONS = "Transactions"
+    COLUMN_VALUE = "Total amount"
+    dset_tcourse_transactions = con.execute(
+        f"""
+        SELECT
+            strftime({quote_ident(cols.PAYMENT_DATE)}, '%Y-%m') AS {quote_ident(COLUMN_DATE)},
+            COUNT(*) AS {quote_ident(COLUMN_TRANSACTIONS)},
+            SUM({quote_ident(cols.AMOUNT)}) AS {quote_ident(COLUMN_VALUE)}
+        FROM data
+        WHERE {WHERE_CLAUSE}
+        GROUP BY {quote_ident(COLUMN_DATE)}
+        ORDER BY {quote_ident(COLUMN_DATE)}
+        """,
+        params,
+    ).fetchdf()
+
+    dset_tcourse_transactions[COLUMN_DATE] = pd.to_datetime(dset_tcourse_transactions[COLUMN_DATE])
+
+    column_to_plot = st.radio(
+        "Choose what to plot", options=[COLUMN_TRANSACTIONS, COLUMN_VALUE], index=0, horizontal=True
+    )
+
+    fig = px.bar(
+        dset_tcourse_transactions,
+        x=COLUMN_DATE,
+        y=column_to_plot,
+        labels={COLUMN_DATE: ""},
+        title="",
+    )
+    fig.update_layout(margin=dict(l=0, r=0, t=40, b=0))
+    fig.update_yaxes(tickformat=",")
+    fig.update_xaxes(dtick="M12", tickformat="%b %Y", ticklabelmode="period")
+
+    st.plotly_chart(fig, use_container_width=True)
