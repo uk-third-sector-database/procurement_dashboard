@@ -3,9 +3,11 @@
 from pathlib import Path
 
 import duckdb
+import json
 import pandas as pd
 import plotly.express as px
-import sidebar
+import geopandas as gpd
+import sidebar as sd
 import streamlit as st
 
 import utils.columns as cols
@@ -31,6 +33,7 @@ COLUMNS_TO_DISPLAY = [
     cols.PAYMENT_DATE,
     cols.LATITUDE,
     cols.LONGITUDE,
+    cols.GEOMETRY,
     cols.SPINE,
     cols.MANUAL_MATCH,
     cols.OTHER_MATCH,
@@ -52,7 +55,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-sidebar.display()
+sd.display()
 
 # configure the relation to the parquet data file
 # -----------------------------------------------
@@ -73,11 +76,7 @@ rel.create_view("data", replace=True)
 
 # build the sidebar display settings
 n_displayed_records = st.sidebar.number_input(
-    "Maximum number of records to display",
-    min_value=10,
-    max_value=500,
-    value=250,
-    step=10
+    "Maximum number of records to display", min_value=10, max_value=500, value=250, step=10
 )
 
 
@@ -256,6 +255,12 @@ cols_metrics = st.columns(3)
 cols_metrics[0].metric("Transactions", f"{n_records:,}")
 cols_metrics[1].metric("Suppliers", f"{n_suppliers:,}")
 cols_metrics[2].metric("Total amount", f"{total_amount:,.0f}")
+
+# SHAPE_FILE = sd.ASSETS_DIR / "NUTS_RG_01M_2021_4326_shp" / "NUTS_RG_01M_2021_4326_shp.shp"
+# nuts = gpd.read_file(SHAPE_FILE)
+# nuts = nuts[nuts.CNTR_CODE == "UK"].copy()
+# nuts = nuts.reset_index().rename(columns={"index": "gid"})
+# geojson = json.loads(nuts.to_json())
 
 tabs_views = st.tabs(["Raw data", "Aggregates by supplier", "Timecourse"])
 

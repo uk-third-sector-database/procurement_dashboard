@@ -61,15 +61,15 @@ COLUMN_NAMES = {
     "removed": cols.REMOVED,
     "latitude": cols.LATITUDE,
     "longitude": cols.LONGITUDE,
-    "geometry": "Geometry",
-    "nuts_id_0": "NUTS ID 0",
-    "nuts_name_0": "NUTS Name 0",
-    "nuts_id_1": "NUTS ID 1",
-    "nuts_name_1": "NUTS Name 1",
-    "nuts_id_2": "NUTS ID 2",
-    "nuts_name_2": "NUTS Name 2",
-    "nuts_id_3": "NUTS ID 3",
-    "nuts_name_3": "NUTS Name 3",
+    "geometry": cols.GEOMETRY,
+    "nuts_id_0": cols.NUTS_ID_0,
+    "nuts_name_0": cols.NUTS_NAME_0,
+    "nuts_id_1": cols.NUTS_ID_1,
+    "nuts_name_1": cols.NUTS_NAME_1,
+    "nuts_id_2": cols.NUTS_ID_2,
+    "nuts_name_2": cols.NUTS_NAME_2,
+    "nuts_id_3": cols.NUTS_ID_3,
+    "nuts_name_3": cols.NUTS_NAME_3,
 }
 
 
@@ -176,8 +176,7 @@ def prepare_parquet(in_fpath: Path, out_fpath: Path):
             case "longitude":
                 dset[column_name] = process_longitude(dset[column_name])
             case "geometry":
-                dset = dset.drop(columns=[column_name])
-                print("- column dropped")
+                dset[column_name] = process_geometry(dset[column_name])
             case "nuts_id_1":
                 dset[column_name] = process_nuts_id(dset[column_name])
             case "nuts_name_1":
@@ -778,6 +777,28 @@ def process_longitude(s: pd.Series) -> pd.Series:
     """
     null_count = s.isna().sum()
     print(f"- null values: {null_count}")
+
+    print(f"- processed dtype: {s.dtype}")
+
+    return s
+
+
+def process_geometry(s: pd.Series) -> pd.Series:
+    """Process the 'geometry' column: replace newline characters with spaces.
+    Args:
+        s (pd.Series): Input pandas Series for the 'geometry' column.
+    Returns:
+        pd.Series: Series with processed 'geometry' column.
+    """
+    null_count = s.isna().sum()
+    print(f"- null values: {null_count}")
+
+    s = s.astype("string")
+
+    print(f"- processed dtype: {s.dtype}")
+
+    return s
+
 
     print(f"- processed dtype: {s.dtype}")
 
