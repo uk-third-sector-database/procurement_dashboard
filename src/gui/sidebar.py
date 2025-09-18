@@ -48,3 +48,5 @@ def display() -> None:
         image_with_link(LOGOS[3][0], LOGOS[3][1])
     with logo_columns[1]:
         image_with_link(LOGOS[4][0], LOGOS[4][1])
+
+    st.sidebar.divider()

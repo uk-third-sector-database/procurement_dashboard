@@ -72,15 +72,13 @@ rel.create_view("data", replace=True)
 # print(column_names)
 
 # build the sidebar display settings
-with st.sidebar.expander("Display settings", expanded=False):
-    n_displayed_records = st.number_input(
-        "Records to display",
-        min_value=10,
-        max_value=1000,
-        value=500,
-        step=10,
-        help="Select the number of records to display.",
-    )
+n_displayed_records = st.sidebar.number_input(
+    "Maximum number of records to display",
+    min_value=10,
+    max_value=500,
+    value=250,
+    step=10
+)
 
 
 # get data from the file to build various widgets
