@@ -1,4 +1,6 @@
-""" Sidebar for the app. """
+"""Sidebar for the app."""
+
+import base64
 from pathlib import Path
 
 import streamlit as st
@@ -6,13 +8,26 @@ import streamlit as st
 ASSETS_DIR = Path(__file__).parent.parent.parent / "assets"
 
 LOGOS = [
-    ASSETS_DIR / "oxford_logo.png",
-    ASSETS_DIR / "tsrc_square.jpg",
-    ASSETS_DIR / "third_sector_database_logo.png",
-    ASSETS_DIR / "2024_oxrse_square.svg",
-    ASSETS_DIR / "gradel_institute.png",
-    ASSETS_DIR / "ESRC.png",
+    # ASSETS_DIR / "oxford_logo.png",
+    [ASSETS_DIR / "tsrc_square.jpg", "https://www.birmingham.ac.uk/research/tsrc"],
+    [ASSETS_DIR / "third_sector_database_logo.png", "https://uk-third-sector-database.github.io/"],
+    [ASSETS_DIR / "2024_oxrse_square.png", "https://www.rse.ox.ac.uk"],
+    [ASSETS_DIR / "gradel_institute.png", "https://www.gradelinstituteofcharity.co.uk/"],
+    [ASSETS_DIR / "ESRC.png", "https://www.ukri.org/councils/esrc/"],
 ]
+
+
+def image_with_link(image_path: Path, link_url: str, width: int = 100) -> None:
+    """Render an image as a clickable link in Streamlit."""
+    with open(image_path, "rb") as f:
+        data = f.read()
+    b64 = base64.b64encode(data).decode("utf-8")
+    st.markdown(
+        f'<a href="{link_url}" target="_blank">'
+        f'<img src="data:image/png;base64,{b64}" width="{width}">'
+        f"</a>",
+        unsafe_allow_html=True,
+    )
 
 
 def display() -> None:
@@ -20,11 +35,16 @@ def display() -> None:
 
     st.sidebar.title("Procurement Dashboard")
 
-    logo_columns = st.sidebar.columns(4)
-    logo_columns[0].image(LOGOS[0])
-    logo_columns[1].image(LOGOS[1])
-    logo_columns[2].image(LOGOS[2])
-    logo_columns[3].image(LOGOS[3])
+    logo_columns = st.sidebar.columns(3)
+    with logo_columns[0]:
+        image_with_link(LOGOS[0][0], LOGOS[0][1])
+    with logo_columns[1]:
+        image_with_link(LOGOS[1][0], LOGOS[1][1])
+    with logo_columns[2]:
+        image_with_link(LOGOS[2][0], LOGOS[2][1])
+
     logo_columns = st.sidebar.columns(2)
-    logo_columns[0].image(LOGOS[4])
-    logo_columns[1].image(LOGOS[5])
+    with logo_columns[0]:
+        image_with_link(LOGOS[3][0], LOGOS[3][1])
+    with logo_columns[1]:
+        image_with_link(LOGOS[4][0], LOGOS[4][1])
