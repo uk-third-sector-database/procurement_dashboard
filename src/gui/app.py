@@ -233,6 +233,12 @@ n_suppliers = con.execute(
     f"SELECT COUNT(DISTINCT {quote_ident(cols.SUPPLIER)}) FROM data WHERE {WHERE_CLAUSE}", params
 ).fetchone()[0]
 
+total_amount = con.execute(
+    f"SELECT SUM({quote_ident(cols.AMOUNT)}) "
+    f"FROM data WHERE {WHERE_CLAUSE}",
+    params
+).fetchone()[0]
+
 # get the raw dataset to display as top records by Amount
 dset_raw = con.execute(
     f"""
@@ -249,9 +255,10 @@ if dset_raw.empty:
     st.warning("No records available for the selected filters.")
     st.stop()
 
-cols_metrics = st.columns(2)
+cols_metrics = st.columns(3)
 cols_metrics[0].metric("Transactions", f"{n_records:,}")
 cols_metrics[1].metric("Suppliers", f"{n_suppliers:,}")
+cols_metrics[2].metric("Total amount", f"{total_amount:,.0f}")
 
 tabs_views = st.tabs(["Raw data", "Aggregates by supplier"])
 
