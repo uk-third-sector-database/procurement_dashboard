@@ -319,17 +319,23 @@ if dset_raw.empty:
 cols_metrics = st.columns(3)
 
 with cols_metrics[0].container(border=True):
-    st.metric("🏢 Suppliers - all", f"{n_suppliers:,}")
     if is_spine is not True and n_suppliers_spine is not None:
+        st.metric("🏢 Suppliers - all", f"{n_suppliers:,}")
         st.metric("Suppliers - spine (TSO)", f"{n_suppliers_spine:,}")
+    else:
+        st.metric("🏢 Suppliers", f"{n_suppliers:,}")
 with cols_metrics[1].container(border=True):
-    st.metric("🤝 Transactions - all", f"{n_transactions:,}")
     if is_spine is not True and n_transactions_spine is not None:
         st.metric("Transactions - spine (TSO)", f"{n_transactions_spine:,}")
+        st.metric("🤝 Transactions - all", f"{n_transactions:,}")
+    else:
+        st.metric("🤝 Transactions", f"{n_transactions:,}")
 with cols_metrics[2].container(border=True):
-    st.metric("💷 Total amount - all", f"{total_amount:,.0f}")
     if is_spine is not True and total_amount_spine is not None:
         st.metric("Total amount - spine (TSO)", f"{total_amount_spine:,.0f}")
+        st.metric("💷 Total amount - all", f"{total_amount:,.0f}")
+    else:
+        st.metric("💷 Total amount", f"{total_amount:,.0f}")
 
 tabs_views = st.tabs(
     ["Raw data", "Aggregates by supplier", "Timecourse", "Geographical distribution"]
