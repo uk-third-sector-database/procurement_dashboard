@@ -25,7 +25,8 @@ dependencies = [
     "plotly>=6.3.0",
     "nbformat>=5.10.4",
     "duckdb>=1.3.2",
-    "geopandas>=1.1.1"
+    "geopandas>=1.1.1",
+    "matplotlib>=3.10.6"
 ]
 
 
