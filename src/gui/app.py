@@ -519,11 +519,12 @@ with tabs_views[3]:
     )
     nuts_display[cols.TOTAL_VALUE_PAYMENTS] = nuts_display[cols.TOTAL_VALUE_PAYMENTS].fillna(0)
     nuts_display[cols.TOTAL_PAYMENTS] = nuts_display[cols.TOTAL_PAYMENTS].fillna(0)
-
+    nuts_display.set_index("NUTS_ID", inplace=True)
     fig = px.choropleth(
-        nuts_display.set_index("NUTS_ID"),
+        nuts_display,
         geojson=nuts_display.geometry,
         locations=nuts_display.index,
+        hover_name="NUTS_NAME",
         color=column_to_plot,
         color_continuous_scale="Blues",
         projection="mercator",
@@ -533,7 +534,7 @@ with tabs_views[3]:
     cols_maps = st.columns(2)
     with cols_maps[0]:
         st.dataframe(
-            nuts_display[["NUTS_ID", "NUTS_NAME", cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS]],
+            nuts_display[["NUTS_NAME", cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS]],
             use_container_width=False,
             hide_index=False,
         )
