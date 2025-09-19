@@ -269,7 +269,9 @@ params.extend(st.session_state[KEY_PAYMENT_DATE_RANGE])
 WHERE_CLAUSE = " AND ".join(clauses) if clauses else "TRUE"
 
 # get stats for the filtered dataset
-n_records = con.execute(f"SELECT COUNT(*) FROM data WHERE {WHERE_CLAUSE}", params).fetchone()[0]
+n_transactions = con.execute(f"SELECT COUNT(*) FROM data WHERE {WHERE_CLAUSE}", params).fetchone()[
+    0
+]
 
 n_suppliers = con.execute(
     f"SELECT COUNT(DISTINCT {quote_ident(cols.SUPPLIER)}) FROM data WHERE {WHERE_CLAUSE}", params
@@ -278,6 +280,25 @@ n_suppliers = con.execute(
 total_amount = con.execute(
     f"SELECT SUM({quote_ident(cols.AMOUNT)}) FROM data WHERE {WHERE_CLAUSE}", params
 ).fetchone()[0]
+
+print(is_spine)
+if is_spine is None and n_transactions > 0:
+    WHERE_CLAUSE_SPINE = WHERE_CLAUSE + f" AND {quote_ident(cols.SPINE)} = TRUE"
+    n_suppliers_spine = con.execute(
+        f"SELECT COUNT(DISTINCT {quote_ident(cols.SUPPLIER)}) FROM data WHERE {WHERE_CLAUSE_SPINE}",
+        params,
+    ).fetchone()[0]
+    n_transactions_spine = con.execute(
+        f"SELECT COUNT(*) FROM data WHERE {WHERE_CLAUSE_SPINE}", params
+    ).fetchone()[0]
+    total_amount_spine = con.execute(
+        f"SELECT SUM({quote_ident(cols.AMOUNT)}) FROM data WHERE {WHERE_CLAUSE_SPINE}", params
+    ).fetchone()[0]
+else:
+    n_suppliers_spine = None
+    n_transactions_spine = None
+    total_amount_spine = None
+
 
 # get the raw dataset to display as top records by Amount
 dset_raw = con.execute(
@@ -296,17 +317,26 @@ if dset_raw.empty:
     st.stop()
 
 cols_metrics = st.columns(3)
-cols_metrics[0].metric("Transactions", f"{n_records:,}")
-cols_metrics[1].metric("Suppliers", f"{n_suppliers:,}")
-cols_metrics[2].metric("Total amount", f"{total_amount:,.0f}")
 
+with cols_metrics[0].container(border=True):
+    st.metric("🏢 Suppliers - all", f"{n_suppliers:,}")
+    if is_spine is not True and n_suppliers_spine is not None:
+        st.metric("Suppliers - spine (TSO)", f"{n_suppliers_spine:,}")
+with cols_metrics[1].container(border=True):
+    st.metric("🤝 Transactions - all", f"{n_transactions:,}")
+    if is_spine is not True and n_transactions_spine is not None:
+        st.metric("Transactions - spine (TSO)", f"{n_transactions_spine:,}")
+with cols_metrics[2].container(border=True):
+    st.metric("💷 Total amount - all", f"{total_amount:,.0f}")
+    if is_spine is not True and total_amount_spine is not None:
+        st.metric("Total amount - spine (TSO)", f"{total_amount_spine:,.0f}")
 
 tabs_views = st.tabs(
     ["Raw data", "Aggregates by supplier", "Timecourse", "Geographical distribution"]
 )
 
 with tabs_views[0]:
-    if n_records > n_displayed_records:
+    if n_transactions > n_displayed_records:
         # more records available than displayed, inform the user about the display selection made
         st.write(f"""
         The top **{n_displayed_records}** selected transactions by **{cols.AMOUNT}**
