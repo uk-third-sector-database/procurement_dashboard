@@ -38,11 +38,9 @@ sd.display()
 
 # configure the relation to the parquet data file
 # -----------------------------------------------
-FILEPATH = Path(__file__).parent.parent.parent / "data" / "processed" / "dataset.parquet"
-# establish a connection to DuckDB
+# establish a connection to DuckDB and open a relation with the parquet file
 con = duckdb.connect()
-# open a relation with the parquet file
-rel = con.read_parquet(str(FILEPATH))
+rel = con.read_parquet(str(shared.FILEPATH))
 rel.create_view("data", replace=True)
 
 # get the data columns
@@ -63,7 +61,7 @@ n_displayed_records = st.sidebar.number_input(
 sources = (
     con.execute(
         f"""
-        SELECT DISTINCT {cols.SOURCE} FROM data ORDER BY 1
+        SELECT DISTINCT {cols_sql.SOURCE} FROM data ORDER BY 1
         """
     )
     .fetchdf()[cols.SOURCE]
@@ -342,18 +340,18 @@ with tabs_views[1]:
         dset_suppliers = con.execute(
             f"""
                 WITH filtered AS (
-                    SELECT {cols.SUPPLIER},
-                            {cols.AMOUNT}
+                    SELECT {cols_sql.SUPPLIER},
+                            {cols_sql.AMOUNT}
                 FROM data
                 WHERE {WHERE_CLAUSE}
                 ),
                 agg AS (
                     SELECT
-                        {cols.SUPPLIER},
-                        SUM({cols.AMOUNT}) AS {cols_sql.TOTAL_VALUE_PAYMENTS},
+                        {cols_sql.SUPPLIER},
+                        SUM({cols_sql.AMOUNT}) AS {cols_sql.TOTAL_VALUE_PAYMENTS},
                         COUNT(*) AS {cols_sql.TOTAL_PAYMENTS}
                     FROM filtered
-                    GROUP BY {cols.SUPPLIER}
+                    GROUP BY {cols_sql.SUPPLIER}
                 )
                 SELECT *
                 FROM agg
@@ -377,18 +375,18 @@ with tabs_views[1]:
         dset_suppliers = con.execute(
             f"""
                 WITH filtered AS (
-                    SELECT {cols.SUPPLIER},
-                           {cols.AMOUNT}
+                    SELECT {cols_sql.SUPPLIER},
+                           {cols_sql.AMOUNT}
                 FROM data
                 WHERE {WHERE_CLAUSE}
                 ),
                 agg AS (
                     SELECT
-                        {cols.SUPPLIER},
-                        SUM({cols.AMOUNT}) AS {cols_sql.TOTAL_VALUE_PAYMENTS},
+                        {cols_sql.SUPPLIER},
+                        SUM({cols_sql.AMOUNT}) AS {cols_sql.TOTAL_VALUE_PAYMENTS},
                         COUNT(*) AS {cols_sql.TOTAL_PAYMENTS}
                     FROM filtered
-                    GROUP BY {cols.SUPPLIER}
+                    GROUP BY {cols_sql.SUPPLIER}
                 )
                 SELECT *
                 FROM agg
@@ -474,7 +472,7 @@ with tabs_views[3]:
         f"""
             WITH filtered AS (
                 SELECT {quote_ident(COLUMN_NUTS_ID)},
-                        {quote_ident(cols.AMOUNT)}
+                        {cols_sql.AMOUNT}
             FROM data
             WHERE {WHERE_CLAUSE}
             ),

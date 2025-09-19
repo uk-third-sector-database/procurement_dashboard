@@ -6,6 +6,8 @@ ASSETS_DIR = Path(__file__).parent.parent.parent / "assets"
 ABOUT_FILE = ASSETS_DIR / "about.md"
 PRIVACY_FILE = ASSETS_DIR / "privacy.md"
 
+FILEPATH = Path(__file__).parent.parent.parent / "data" / "processed" / "dataset.parquet"
+
 LOGOS = [
     # ASSETS_DIR / "oxford_logo.png",
     [ASSETS_DIR / "tsrc_square.jpg", "https://www.birmingham.ac.uk/research/tsrc"],
