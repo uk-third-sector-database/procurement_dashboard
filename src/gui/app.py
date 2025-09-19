@@ -281,7 +281,6 @@ total_amount = con.execute(
     f"SELECT SUM({quote_ident(cols.AMOUNT)}) FROM data WHERE {WHERE_CLAUSE}", params
 ).fetchone()[0]
 
-print(is_spine)
 if is_spine is None and n_transactions > 0:
     WHERE_CLAUSE_SPINE = WHERE_CLAUSE + f" AND {quote_ident(cols.SPINE)} = TRUE"
     n_suppliers_spine = con.execute(
@@ -478,12 +477,12 @@ with tabs_views[3]:
     nuts = gpd.read_file(shared.SHAPE_FILE).to_crs(epsg=4326)
     nuts = nuts[nuts.CNTR_CODE == "UK"].copy()
 
-    cols_maps = st.columns(2)
-    with cols_maps[0]:
+    cols_maps_selections = st.columns(2)
+    with cols_maps_selections[0]:
         nuts_level = st.selectbox("NUTS level to display", options=[1, 2, 3], index=0)
-    with cols_maps[1]:
+    with cols_maps_selections[1]:
         column_to_plot = st.radio(
-            "Choose what to plot",
+            "Choose what to plot on the map",
             options=[cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS],
             index=0,
             horizontal=True,
@@ -530,4 +529,13 @@ with tabs_views[3]:
         projection="mercator",
     )
     fig.update_geos(fitbounds="locations", visible=False)
-    st.plotly_chart(fig, use_container_width=True)
+
+    cols_maps = st.columns(2)
+    with cols_maps[0]:
+        st.dataframe(
+            nuts_display[["NUTS_ID", "NUTS_NAME", cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS]],
+            use_container_width=False,
+            hide_index=False,
+        )
+    with cols_maps[1]:
+        st.plotly_chart(fig, use_container_width=True)
