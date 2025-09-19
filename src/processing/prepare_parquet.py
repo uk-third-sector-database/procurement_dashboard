@@ -13,6 +13,7 @@ from pathlib import Path
 import pandas as pd
 
 import utils.columns as cols
+import utils.shared as shared
 
 PARQUET_COMPRESSION = "zstd"
 ENGINE = "pyarrow"
@@ -177,6 +178,10 @@ def prepare_parquet(in_fpath: Path, out_fpath: Path):
                 dset[column_name] = process_longitude(dset[column_name])
             case "geometry":
                 dset[column_name] = process_geometry(dset[column_name])
+            case "nuts_id_0":
+                dset[column_name] = process_nuts_id(dset[column_name])
+            case "nuts_name_0":
+                dset[column_name] = process_nuts_name(dset[column_name])
             case "nuts_id_1":
                 dset[column_name] = process_nuts_id(dset[column_name])
             case "nuts_name_1":
@@ -832,7 +837,7 @@ def process_nuts_name(s: pd.Series) -> pd.Series:
     null_count = s.isna().sum()
     print(f"- null values: {null_count}")
 
-    s = s.astype("string")
+    s = s.astype("string").fillna(shared.NULL_TEXT)
 
     print(f"- processed dtype: {s.dtype}")
 

@@ -3,14 +3,13 @@
 from pathlib import Path
 
 import duckdb
-import json
 import pandas as pd
 import plotly.express as px
-import geopandas as gpd
 import sidebar as sd
 import streamlit as st
 
 import utils.columns as cols
+import utils.shared as shared
 
 
 def quote_ident(name: str) -> str:
@@ -31,8 +30,6 @@ COLUMNS_TO_DISPLAY = [
     cols.AMOUNT,
     cols.SUPPLIER,
     cols.PAYMENT_DATE,
-    cols.LATITUDE,
-    cols.LONGITUDE,
     cols.GEOMETRY,
     cols.SPINE,
     cols.MANUAL_MATCH,
@@ -40,6 +37,7 @@ COLUMNS_TO_DISPLAY = [
     cols.REMOVED,
     cols.REMOVAL_DATE,
 ]
+COLUMNS_DATE = [cols.PAYMENT_DATE, cols.REMOVAL_DATE]
 COLUMNS_TO_DISPLAY_SQL = ", ".join(quote_ident(c) for c in COLUMNS_TO_DISPLAY)
 
 COLUMNS_TO_DISPLAY_STYLES = {
@@ -91,25 +89,6 @@ sources = (
     .tolist()
 )
 
-latitudes = (
-    con.execute(
-        f"""
-        SELECT DISTINCT {cols.LATITUDE} FROM data ORDER BY 1
-        """
-    )
-    .fetchdf()[cols.LATITUDE]
-    .tolist()
-)
-
-longitudes = (
-    con.execute(
-        f"""
-        SELECT DISTINCT {cols.LONGITUDE} FROM data ORDER BY 1
-        """
-    )
-    .fetchdf()[cols.LONGITUDE]
-    .tolist()
-)
 
 KEY_PAYMENT_DATE_RANGE = f"{cols.PAYMENT_DATE}_range"
 dmin, dmax = con.execute(
@@ -139,19 +118,85 @@ is_spine = st.sidebar.selectbox(
     help=f"Choose value for the '{cols.SPINE}' column.",
 )
 
-is_manual_match = st.sidebar.selectbox(
-    cols.MANUAL_MATCH,
-    options=[None, True, False],
-    format_func=lambda x: TEXT_EITHER if x is None else str(x),
-    help=f"Choose value for the '{cols.MANUAL_MATCH}' column.",
-)
+if is_spine is True:
+    is_manual_match = st.sidebar.selectbox(
+        cols.MANUAL_MATCH,
+        options=[None, True, False],
+        format_func=lambda x: TEXT_EITHER if x is None else str(x),
+        help=f"Choose value for the '{cols.MANUAL_MATCH}' column.",
+    )
 
-is_other_match = st.sidebar.selectbox(
-    cols.OTHER_MATCH,
-    options=[None, True, False],
-    format_func=lambda x: TEXT_EITHER if x is None else str(x),
-    help=f"Choose value for the '{cols.OTHER_MATCH}' column.",
-)
+    is_other_match = st.sidebar.selectbox(
+        cols.OTHER_MATCH,
+        options=[None, True, False],
+        format_func=lambda x: TEXT_EITHER if x is None else str(x),
+        help=f"Choose value for the '{cols.OTHER_MATCH}' column.",
+    )
+
+    nuts_name_1s = (
+        con.execute(
+            f"""
+            SELECT DISTINCT {quote_ident(cols.NUTS_NAME_1)} FROM data ORDER BY 1
+            """
+        )
+        .fetchdf()[cols.NUTS_NAME_1]
+        .tolist()
+    )
+    if shared.NULL_TEXT in nuts_name_1s:
+        nuts_name_1s.remove(shared.NULL_TEXT)
+        nuts_name_1s.append(shared.NULL_TEXT)
+
+    selected_nuts_1s = st.sidebar.multiselect(
+        "NUTS Level 1 region",
+        options=nuts_name_1s,
+        default=nuts_name_1s
+    )
+
+    nuts_name_2s = (
+        con.execute(
+            f"""
+            SELECT DISTINCT {quote_ident(cols.NUTS_NAME_2)} FROM data ORDER BY 1
+            """
+        )
+        .fetchdf()[cols.NUTS_NAME_2]
+        .tolist()
+    )
+    if shared.NULL_TEXT in nuts_name_2s:
+        nuts_name_2s.remove(shared.NULL_TEXT)
+        nuts_name_2s.append(shared.NULL_TEXT)
+
+    selected_nuts_2s = st.sidebar.multiselect(
+        "NUTS Level 2 region",
+        options=nuts_name_2s,
+        default=nuts_name_2s,
+        key="nuts_name_2s"
+    )
+
+    nuts_name_3s = (
+        con.execute(
+            f"""
+            SELECT DISTINCT {quote_ident(cols.NUTS_NAME_3)} FROM data ORDER BY 1
+            """
+        )
+        .fetchdf()[cols.NUTS_NAME_3]
+        .tolist()
+    )
+    if shared.NULL_TEXT in nuts_name_3s:
+        nuts_name_3s.remove(shared.NULL_TEXT)
+        nuts_name_3s.append(shared.NULL_TEXT)
+
+    selected_nuts_3s = st.sidebar.multiselect(
+        "NUTS Level 3 region",
+        options=nuts_name_3s,
+        default=nuts_name_3s,
+        key="nuts_name_3s"
+    )
+
+else:
+    selected_nuts_1s = None
+    selected_nuts_2s = None
+    is_manual_match = None
+    is_other_match = None
 
 is_removed = st.sidebar.selectbox(
     cols.REMOVED,
@@ -197,6 +242,12 @@ clauses, params = [], []
 PLACEHOLDERS = ", ".join("?" for _ in selected_sources)
 clauses.append(f"{quote_ident(cols.SOURCE)} IN ({PLACEHOLDERS})")
 params.extend(selected_sources)
+
+# nuts_name_1s
+if selected_nuts_1s:
+    PLACEHOLDERS = ", ".join("?" for _ in selected_nuts_1s)
+    clauses.append(f"{quote_ident(cols.NUTS_NAME_1)} IN ({PLACEHOLDERS})")
+    params.extend(selected_nuts_1s)
 
 # is spine
 if is_spine is not None:
@@ -256,11 +307,6 @@ cols_metrics[0].metric("Transactions", f"{n_records:,}")
 cols_metrics[1].metric("Suppliers", f"{n_suppliers:,}")
 cols_metrics[2].metric("Total amount", f"{total_amount:,.0f}")
 
-# SHAPE_FILE = sd.ASSETS_DIR / "NUTS_RG_01M_2021_4326_shp" / "NUTS_RG_01M_2021_4326_shp.shp"
-# nuts = gpd.read_file(SHAPE_FILE)
-# nuts = nuts[nuts.CNTR_CODE == "UK"].copy()
-# nuts = nuts.reset_index().rename(columns={"index": "gid"})
-# geojson = json.loads(nuts.to_json())
 
 tabs_views = st.tabs(["Raw data", "Aggregates by supplier", "Timecourse"])
 
@@ -272,8 +318,7 @@ with tabs_views[0]:
         """)
 
     # format the columns to display
-    date_cols = ["Payment date", "Org seen - min date", "Org seen - max date"]
-    for col in date_cols:
+    for col in COLUMNS_DATE:
         if col in dset_raw.columns and pd.api.types.is_datetime64_any_dtype(dset_raw[col]):
             dset_raw[col] = dset_raw[col].dt.strftime("%d/%m/%Y")
     dset_styled = dset_raw.style.format(COLUMNS_TO_DISPLAY_STYLES)
