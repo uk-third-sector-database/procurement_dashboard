@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import duckdb
+import geopandas as gpd
 import pandas as pd
 import plotly.express as px
 import sidebar as sd
@@ -147,9 +148,7 @@ if is_spine is True:
         nuts_name_1s.append(shared.NULL_TEXT)
 
     selected_nuts_1s = st.sidebar.multiselect(
-        "NUTS Level 1 region",
-        options=nuts_name_1s,
-        default=nuts_name_1s
+        "NUTS Level 1 region", options=nuts_name_1s, default=nuts_name_1s
     )
 
     nuts_name_2s = (
@@ -166,10 +165,7 @@ if is_spine is True:
         nuts_name_2s.append(shared.NULL_TEXT)
 
     selected_nuts_2s = st.sidebar.multiselect(
-        "NUTS Level 2 region",
-        options=nuts_name_2s,
-        default=nuts_name_2s,
-        key="nuts_name_2s"
+        "NUTS Level 2 region", options=nuts_name_2s, default=nuts_name_2s, key="nuts_name_2s"
     )
 
     nuts_name_3s = (
@@ -186,10 +182,7 @@ if is_spine is True:
         nuts_name_3s.append(shared.NULL_TEXT)
 
     selected_nuts_3s = st.sidebar.multiselect(
-        "NUTS Level 3 region",
-        options=nuts_name_3s,
-        default=nuts_name_3s,
-        key="nuts_name_3s"
+        "NUTS Level 3 region", options=nuts_name_3s, default=nuts_name_3s, key="nuts_name_3s"
     )
 
 else:
@@ -308,7 +301,9 @@ cols_metrics[1].metric("Suppliers", f"{n_suppliers:,}")
 cols_metrics[2].metric("Total amount", f"{total_amount:,.0f}")
 
 
-tabs_views = st.tabs(["Raw data", "Aggregates by supplier", "Timecourse"])
+tabs_views = st.tabs(
+    ["Raw data", "Aggregates by supplier", "Timecourse", "Geographical distribution"]
+)
 
 with tabs_views[0]:
     if n_records > n_displayed_records:
@@ -432,4 +427,71 @@ with tabs_views[2]:
     fig.update_yaxes(tickformat=",")
     fig.update_xaxes(dtick="M12", tickformat="%b %Y", ticklabelmode="period")
 
+    st.plotly_chart(fig, use_container_width=True)
+
+with tabs_views[3]:
+    if is_spine is not True:
+        st.info(
+            f"""
+            Geographical distribution is only available when filtering for
+            '{cols.SPINE}' = True.
+            """
+        )
+        st.stop()
+
+    nuts = gpd.read_file(shared.SHAPE_FILE).to_crs(epsg=4326)
+    nuts = nuts[nuts.CNTR_CODE == "UK"].copy()
+
+    cols_maps = st.columns(2)
+    with cols_maps[0]:
+        nuts_level = st.selectbox("NUTS level to display", options=[1, 2, 3], index=0)
+    with cols_maps[1]:
+        column_to_plot = st.radio(
+            "Choose what to plot",
+            options=[cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS],
+            index=0,
+            horizontal=True,
+        )
+    nuts_display = nuts[nuts.LEVL_CODE == nuts_level]
+
+    COLUMN_NUTS_ID = f"NUTS ID {nuts_level}"
+    dset_nuts = con.execute(
+        f"""
+            WITH filtered AS (
+                SELECT {quote_ident(COLUMN_NUTS_ID)},
+                        {quote_ident(cols.AMOUNT)}
+            FROM data
+            WHERE {WHERE_CLAUSE}
+            ),
+            agg AS (
+                SELECT
+                    {quote_ident(COLUMN_NUTS_ID)},
+                    SUM({quote_ident(cols.AMOUNT)}) AS {quote_ident(cols.TOTAL_VALUE_PAYMENTS)},
+                    COUNT(*) AS {quote_ident(cols.TOTAL_PAYMENTS)}
+                FROM filtered
+                WHERE {quote_ident(COLUMN_NUTS_ID)} IS NOT NULL
+                GROUP BY {quote_ident(COLUMN_NUTS_ID)}
+            )
+            SELECT *
+            FROM agg
+        """,
+        params,
+    ).fetchdf()
+
+    # merge nuts_display with dset_nuts on NUTS_ID_1
+    nuts_display = nuts_display.merge(
+        dset_nuts, how="left", left_on="NUTS_ID", right_on=COLUMN_NUTS_ID
+    )
+    nuts_display[cols.TOTAL_VALUE_PAYMENTS] = nuts_display[cols.TOTAL_VALUE_PAYMENTS].fillna(0)
+    nuts_display[cols.TOTAL_PAYMENTS] = nuts_display[cols.TOTAL_PAYMENTS].fillna(0)
+
+    fig = px.choropleth(
+        nuts_display.set_index("NUTS_ID"),
+        geojson=nuts_display.geometry,
+        locations=nuts_display.index,
+        color=column_to_plot,
+        color_continuous_scale="Blues",
+        projection="mercator",
+    )
+    fig.update_geos(fitbounds="locations", visible=False)
     st.plotly_chart(fig, use_container_width=True)

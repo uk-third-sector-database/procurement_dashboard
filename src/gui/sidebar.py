@@ -5,20 +5,9 @@ from pathlib import Path
 
 import streamlit as st
 
-ASSETS_DIR = Path(__file__).parent.parent.parent / "assets"
+import utils.shared as shared
 
-ABOUT_FILE = ASSETS_DIR / "about.md"
-PRIVACY_FILE = ASSETS_DIR / "privacy.md"
-
-LOGOS = [
-    # ASSETS_DIR / "oxford_logo.png",
-    [ASSETS_DIR / "tsrc_square.jpg", "https://www.birmingham.ac.uk/research/tsrc"],
-    [ASSETS_DIR / "third_sector_database_logo.png", "https://uk-third-sector-database.github.io/"],
-    [ASSETS_DIR / "2024_oxrse_square.png", "https://www.rse.ox.ac.uk"],
-    [ASSETS_DIR / "gradel_institute.png", "https://www.gradelinstituteofcharity.co.uk/"],
-    [ASSETS_DIR / "ESRC.png", "https://www.ukri.org/councils/esrc/"],
-]
-
+LOGOS = shared.LOGOS
 
 def image_with_link(image_path: Path, link_url: str, width: int = 100) -> None:
     """Render an image as a clickable link in Streamlit."""
@@ -54,9 +43,9 @@ def display() -> None:
 
     with st.sidebar.expander("Project information", expanded=False):
         with st.popover("About the project"):
-            st.markdown(ABOUT_FILE.read_text(encoding="utf-8"))
+            st.markdown(shared.ABOUT_FILE.read_text(encoding="utf-8"))
         with st.popover("Privacy policy"):
-            st.markdown(PRIVACY_FILE.read_text(encoding="utf-8"))
+            st.markdown(shared.PRIVACY_FILE.read_text(encoding="utf-8"))
 
         with st.popover("Resources"):
             st.link_button("Project GitHub page", "https://uk-third-sector-database.github.io/")
