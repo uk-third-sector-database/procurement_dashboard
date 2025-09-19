@@ -1,6 +1,7 @@
 """Home page for the procurement dashboard app."""
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import duckdb
 import geopandas as gpd
@@ -9,43 +10,22 @@ import plotly.express as px
 import sidebar as sd
 import streamlit as st
 
-import utils.columns as cols
 import utils.shared as shared
+from utils.columns import (
+    COLS,
+    COLS_SQL,
+    COLUMNS_DATE,
+    COLUMNS_TO_DISPLAY_SQL,
+    COLUMNS_TO_DISPLAY_STYLES,
+    quote_ident,
+)
 
-
-def quote_ident(name: str) -> str:
-    """
-    Safely quote an identifier (column/table/view name) for SQL in DuckDB.
-    Doubles internal quotes to prevent injection/SQL errors.
-    """
-    return '"' + name.replace('"', '""') + '"'
-
+cols = SimpleNamespace(**COLS)
+cols_sql = SimpleNamespace(**COLS_SQL)
 
 TEXT_EITHER = "Do not apply filter"
 
 NULLS = "NULLS LAST"
-
-COLUMNS_TO_DISPLAY = [
-    cols.SOURCE,
-    cols.DEPARTMENT,
-    cols.AMOUNT,
-    cols.SUPPLIER,
-    cols.PAYMENT_DATE,
-    cols.GEOMETRY,
-    cols.SPINE,
-    cols.MANUAL_MATCH,
-    cols.OTHER_MATCH,
-    cols.REMOVED,
-    cols.REMOVAL_DATE,
-]
-COLUMNS_DATE = [cols.PAYMENT_DATE, cols.REMOVAL_DATE]
-COLUMNS_TO_DISPLAY_SQL = ", ".join(quote_ident(c) for c in COLUMNS_TO_DISPLAY)
-
-COLUMNS_TO_DISPLAY_STYLES = {
-    cols.AMOUNT: "{:,.0f}",
-    cols.TOTAL_VALUE_PAYMENTS: "{:,.0f}",
-    cols.TOTAL_PAYMENTS: "{:,.0f}",
-}
 
 st.set_page_config(
     layout="wide",
@@ -95,8 +75,8 @@ KEY_PAYMENT_DATE_RANGE = f"{cols.PAYMENT_DATE}_range"
 dmin, dmax = con.execute(
     f"""
     SELECT 
-    MIN(CAST({quote_ident(cols.PAYMENT_DATE)} AS DATE)),
-    MAX(CAST({quote_ident(cols.PAYMENT_DATE)} AS DATE))
+    MIN(CAST({cols_sql.PAYMENT_DATE} AS DATE)),
+    MAX(CAST({cols_sql.PAYMENT_DATE} AS DATE))
     FROM data
     """
 ).fetchone()
@@ -137,7 +117,7 @@ if is_spine is True:
     nuts_name_1s = (
         con.execute(
             f"""
-            SELECT DISTINCT {quote_ident(cols.NUTS_NAME_1)} FROM data ORDER BY 1
+            SELECT DISTINCT {cols_sql.NUTS_NAME_1} FROM data ORDER BY 1
             """
         )
         .fetchdf()[cols.NUTS_NAME_1]
@@ -154,7 +134,7 @@ if is_spine is True:
     nuts_name_2s = (
         con.execute(
             f"""
-            SELECT DISTINCT {quote_ident(cols.NUTS_NAME_2)} FROM data ORDER BY 1
+            SELECT DISTINCT {cols_sql.NUTS_NAME_2} FROM data ORDER BY 1
             """
         )
         .fetchdf()[cols.NUTS_NAME_2]
@@ -171,7 +151,7 @@ if is_spine is True:
     nuts_name_3s = (
         con.execute(
             f"""
-            SELECT DISTINCT {quote_ident(cols.NUTS_NAME_3)} FROM data ORDER BY 1
+            SELECT DISTINCT {cols_sql.NUTS_NAME_3} FROM data ORDER BY 1
             """
         )
         .fetchdf()[cols.NUTS_NAME_3]
@@ -233,37 +213,37 @@ clauses, params = [], []
 
 # source
 PLACEHOLDERS = ", ".join("?" for _ in selected_sources)
-clauses.append(f"{quote_ident(cols.SOURCE)} IN ({PLACEHOLDERS})")
+clauses.append(f"{cols_sql.SOURCE} IN ({PLACEHOLDERS})")
 params.extend(selected_sources)
 
 # nuts_name_1s
 if selected_nuts_1s:
     PLACEHOLDERS = ", ".join("?" for _ in selected_nuts_1s)
-    clauses.append(f"{quote_ident(cols.NUTS_NAME_1)} IN ({PLACEHOLDERS})")
+    clauses.append(f"{cols_sql.NUTS_NAME_1} IN ({PLACEHOLDERS})")
     params.extend(selected_nuts_1s)
 
 # is spine
 if is_spine is not None:
-    clauses.append(f"{quote_ident(cols.SPINE)} = ?")
+    clauses.append(f"{cols_sql.SPINE} = ?")
     params.append(is_spine)
 
 # is manual match
 if is_manual_match is not None:
-    clauses.append(f"{quote_ident(cols.MANUAL_MATCH)} = ?")
+    clauses.append(f"{cols_sql.MANUAL_MATCH} = ?")
     params.append(is_manual_match)
 
 # is other match
 if is_other_match is not None:
-    clauses.append(f"{quote_ident(cols.OTHER_MATCH)} = ?")
+    clauses.append(f"{cols_sql.OTHER_MATCH} = ?")
     params.append(is_other_match)
 
 # removed
 if is_removed is not None:
-    clauses.append(f"{quote_ident(cols.REMOVED)} = ?")
+    clauses.append(f"{cols_sql.REMOVED} = ?")
     params.append(is_removed)
 
 # date range
-clauses.append(f"CAST({quote_ident(cols.PAYMENT_DATE)} AS DATE) BETWEEN ? AND ?")
+clauses.append(f"CAST({cols_sql.PAYMENT_DATE} AS DATE) BETWEEN ? AND ?")
 params.extend(st.session_state[KEY_PAYMENT_DATE_RANGE])
 
 WHERE_CLAUSE = " AND ".join(clauses) if clauses else "TRUE"
@@ -274,24 +254,24 @@ n_transactions = con.execute(f"SELECT COUNT(*) FROM data WHERE {WHERE_CLAUSE}", 
 ]
 
 n_suppliers = con.execute(
-    f"SELECT COUNT(DISTINCT {quote_ident(cols.SUPPLIER)}) FROM data WHERE {WHERE_CLAUSE}", params
+    f"SELECT COUNT(DISTINCT {cols_sql.SUPPLIER}) FROM data WHERE {WHERE_CLAUSE}", params
 ).fetchone()[0]
 
 total_amount = con.execute(
-    f"SELECT SUM({quote_ident(cols.AMOUNT)}) FROM data WHERE {WHERE_CLAUSE}", params
+    f"SELECT SUM({cols_sql.AMOUNT}) FROM data WHERE {WHERE_CLAUSE}", params
 ).fetchone()[0]
 
 if is_spine is None and n_transactions > 0:
-    WHERE_CLAUSE_SPINE = WHERE_CLAUSE + f" AND {quote_ident(cols.SPINE)} = TRUE"
+    WHERE_CLAUSE_SPINE = WHERE_CLAUSE + f" AND {cols_sql.SPINE} = TRUE"
     n_suppliers_spine = con.execute(
-        f"SELECT COUNT(DISTINCT {quote_ident(cols.SUPPLIER)}) FROM data WHERE {WHERE_CLAUSE_SPINE}",
+        f"SELECT COUNT(DISTINCT {cols_sql.SUPPLIER}) FROM data WHERE {WHERE_CLAUSE_SPINE}",
         params,
     ).fetchone()[0]
     n_transactions_spine = con.execute(
         f"SELECT COUNT(*) FROM data WHERE {WHERE_CLAUSE_SPINE}", params
     ).fetchone()[0]
     total_amount_spine = con.execute(
-        f"SELECT SUM({quote_ident(cols.AMOUNT)}) FROM data WHERE {WHERE_CLAUSE_SPINE}", params
+        f"SELECT SUM({cols_sql.AMOUNT}) FROM data WHERE {WHERE_CLAUSE_SPINE}", params
     ).fetchone()[0]
 else:
     n_suppliers_spine = None
@@ -305,7 +285,7 @@ dset_raw = con.execute(
     SELECT {COLUMNS_TO_DISPLAY_SQL}
     FROM data
     WHERE {WHERE_CLAUSE}
-    ORDER BY {quote_ident(cols.AMOUNT)} DESC {NULLS}
+    ORDER BY {cols_sql.AMOUNT} DESC {NULLS}
     LIMIT ?
     """,
     params + [n_displayed_records],
@@ -325,14 +305,14 @@ with cols_metrics[0].container(border=True):
         st.metric("🏢 Suppliers", f"{n_suppliers:,}")
 with cols_metrics[1].container(border=True):
     if is_spine is not True and n_transactions_spine is not None:
-        st.metric("Transactions - spine (TSO)", f"{n_transactions_spine:,}")
         st.metric("🤝 Transactions - all", f"{n_transactions:,}")
+        st.metric("Transactions - spine (TSO)", f"{n_transactions_spine:,}")
     else:
         st.metric("🤝 Transactions", f"{n_transactions:,}")
 with cols_metrics[2].container(border=True):
     if is_spine is not True and total_amount_spine is not None:
-        st.metric("Total amount - spine (TSO)", f"{total_amount_spine:,.0f}")
         st.metric("💷 Total amount - all", f"{total_amount:,.0f}")
+        st.metric("Total amount - spine (TSO)", f"{total_amount_spine:,.0f}")
     else:
         st.metric("💷 Total amount", f"{total_amount:,.0f}")
 
@@ -370,14 +350,14 @@ with tabs_views[1]:
                 agg AS (
                     SELECT
                         {cols.SUPPLIER},
-                        SUM({cols.AMOUNT}) AS {quote_ident(cols.TOTAL_VALUE_PAYMENTS)},
-                        COUNT(*) AS {quote_ident(cols.TOTAL_PAYMENTS)}
+                        SUM({cols.AMOUNT}) AS {cols_sql.TOTAL_VALUE_PAYMENTS},
+                        COUNT(*) AS {cols_sql.TOTAL_PAYMENTS}
                     FROM filtered
                     GROUP BY {cols.SUPPLIER}
                 )
                 SELECT *
                 FROM agg
-                ORDER BY {quote_ident(cols.TOTAL_VALUE_PAYMENTS)} DESC NULLS LAST
+                ORDER BY {cols_sql.TOTAL_VALUE_PAYMENTS} DESC NULLS LAST
                 LIMIT ?
             """,
             params + [int(n_displayed_records)],
@@ -405,14 +385,14 @@ with tabs_views[1]:
                 agg AS (
                     SELECT
                         {cols.SUPPLIER},
-                        SUM({cols.AMOUNT}) AS {quote_ident(cols.TOTAL_VALUE_PAYMENTS)},
-                        COUNT(*) AS {quote_ident(cols.TOTAL_PAYMENTS)}
+                        SUM({cols.AMOUNT}) AS {cols_sql.TOTAL_VALUE_PAYMENTS},
+                        COUNT(*) AS {cols_sql.TOTAL_PAYMENTS}
                     FROM filtered
                     GROUP BY {cols.SUPPLIER}
                 )
                 SELECT *
                 FROM agg
-                ORDER BY {quote_ident(cols.TOTAL_PAYMENTS)} DESC NULLS LAST
+                ORDER BY {cols_sql.TOTAL_PAYMENTS} DESC NULLS LAST
                 LIMIT ?
             """,
             params + [int(n_displayed_records)],
@@ -428,15 +408,15 @@ with tabs_views[1]:
         dset_styled = dset_suppliers.style.format(COLUMNS_TO_DISPLAY_STYLES)
         st.dataframe(dset_styled, use_container_width=True, hide_index=True)
 with tabs_views[2]:
-    COLUMN_DATE = "Date"
-    COLUMN_TRANSACTIONS = "Transactions"
-    COLUMN_VALUE = "Total amount"
+    COLUMN_DATE = cols.DATE
+    COLUMN_TRANSACTIONS = cols.PAYMENTS
+    COLUMN_VALUE = cols.VALUE
     dset_tcourse_transactions = con.execute(
         f"""
         SELECT
-            strftime({quote_ident(cols.PAYMENT_DATE)}, '%Y-%m') AS {quote_ident(COLUMN_DATE)},
+            strftime({cols_sql.PAYMENT_DATE}, '%Y-%m') AS {quote_ident(COLUMN_DATE)},
             COUNT(*) AS {quote_ident(COLUMN_TRANSACTIONS)},
-            SUM({quote_ident(cols.AMOUNT)}) AS {quote_ident(COLUMN_VALUE)}
+            SUM({cols_sql.AMOUNT}) AS {quote_ident(COLUMN_VALUE)}
         FROM data
         WHERE {WHERE_CLAUSE}
         GROUP BY {quote_ident(COLUMN_DATE)}
@@ -501,8 +481,8 @@ with tabs_views[3]:
             agg AS (
                 SELECT
                     {quote_ident(COLUMN_NUTS_ID)},
-                    SUM({quote_ident(cols.AMOUNT)}) AS {quote_ident(cols.TOTAL_VALUE_PAYMENTS)},
-                    COUNT(*) AS {quote_ident(cols.TOTAL_PAYMENTS)}
+                    SUM({cols_sql.AMOUNT}) AS {cols_sql.TOTAL_VALUE_PAYMENTS},
+                    COUNT(*) AS {cols_sql.TOTAL_PAYMENTS}
                 FROM filtered
                 WHERE {quote_ident(COLUMN_NUTS_ID)} IS NOT NULL
                 GROUP BY {quote_ident(COLUMN_NUTS_ID)}

@@ -9,11 +9,14 @@ Usage:
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
 
-import utils.columns as cols
 import utils.shared as shared
+from utils.columns import COLS
+
+cols = SimpleNamespace(**COLS)
 
 PARQUET_COMPRESSION = "zstd"
 ENGINE = "pyarrow"
@@ -799,11 +802,6 @@ def process_geometry(s: pd.Series) -> pd.Series:
     print(f"- null values: {null_count}")
 
     s = s.astype("string")
-
-    print(f"- processed dtype: {s.dtype}")
-
-    return s
-
 
     print(f"- processed dtype: {s.dtype}")
 
