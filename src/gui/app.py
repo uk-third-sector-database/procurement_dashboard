@@ -10,6 +10,7 @@ import sidebar as sd
 import streamlit as st
 
 import utils.shared as shared
+import gui.utils as utils 
 from utils.columns import (
     COLS,
     COLS_SQL,
@@ -120,48 +121,53 @@ if is_spine is True:
         .fetchdf()[cols.NUTS_NAME_1]
         .tolist()
     )
-    if shared.NULL_TEXT in nuts_name_1s:
-        nuts_name_1s.remove(shared.NULL_TEXT)
-        nuts_name_1s.append(shared.NULL_TEXT)
+    nuts_name_1s = utils.process_nuts_names(nuts_name_1s)
 
     selected_nuts_1s = st.sidebar.multiselect(
         "NUTS Level 1 region", options=nuts_name_1s, default=nuts_name_1s
     )
-
-    nuts_name_2s = (
-        con.execute(
-            f"""
-            SELECT DISTINCT {cols_sql.NUTS_NAME_2} FROM data ORDER BY 1
-            """
+    if selected_nuts_1s:
+        nuts_name_2s = (
+            con.execute(
+                f"""
+                SELECT DISTINCT {cols_sql.NUTS_NAME_2}
+                FROM data
+                WHERE {cols_sql.NUTS_NAME_1} IN ({", ".join(["?"] * len(selected_nuts_1s))})
+                ORDER BY 1
+                """,
+                selected_nuts_1s,  # params for the IN clause
+            )
+            .fetchdf()[cols.NUTS_NAME_2]
+            .tolist()
         )
-        .fetchdf()[cols.NUTS_NAME_2]
-        .tolist()
-    )
-    if shared.NULL_TEXT in nuts_name_2s:
-        nuts_name_2s.remove(shared.NULL_TEXT)
-        nuts_name_2s.append(shared.NULL_TEXT)
+        nuts_name_2s = utils.process_nuts_names(nuts_name_2s)
 
-    selected_nuts_2s = st.sidebar.multiselect(
-        "NUTS Level 2 region", options=nuts_name_2s, default=nuts_name_2s, key="nuts_name_2s"
-    )
-
-    nuts_name_3s = (
-        con.execute(
-            f"""
-            SELECT DISTINCT {cols_sql.NUTS_NAME_3} FROM data ORDER BY 1
-            """
+        selected_nuts_2s = st.sidebar.multiselect(
+            "NUTS Level 2 region", options=nuts_name_2s, default=nuts_name_2s, key="nuts_name_2s"
         )
-        .fetchdf()[cols.NUTS_NAME_3]
-        .tolist()
-    )
-    if shared.NULL_TEXT in nuts_name_3s:
-        nuts_name_3s.remove(shared.NULL_TEXT)
-        nuts_name_3s.append(shared.NULL_TEXT)
+        if selected_nuts_2s:
+            nuts_name_3s = (
+                con.execute(
+                    f"""
+                    SELECT DISTINCT {cols_sql.NUTS_NAME_3}
+                    FROM data
+                    WHERE {cols_sql.NUTS_NAME_2} IN ({", ".join(["?"] * len(selected_nuts_2s))})
+                    ORDER BY 1
+                    """,
+                    selected_nuts_2s,  # params for the IN clause
+                )
+                .fetchdf()[cols.NUTS_NAME_3]
+                .tolist()
+            )
 
-    selected_nuts_3s = st.sidebar.multiselect(
-        "NUTS Level 3 region", options=nuts_name_3s, default=nuts_name_3s, key="nuts_name_3s"
-    )
+            nuts_name_3s = utils.process_nuts_names(nuts_name_3s)
 
+            selected_nuts_3s = st.sidebar.multiselect(
+                "NUTS Level 3 region",
+                options=nuts_name_3s,
+                default=nuts_name_3s,
+                key="nuts_name_3s",
+            )
 else:
     selected_nuts_1s = None
     selected_nuts_2s = None
@@ -452,7 +458,6 @@ with tabs_views[3]:
         st.stop()
 
     nuts = gpd.read_file(shared.SHAPE_FILE).to_crs(epsg=4326)
-    print(nuts.columns)
     nuts = nuts[(nuts.CNTR_CODE == "UK") & (nuts.NUTS_ID != "UKN")].copy()
 
     cols_maps_selections = st.columns(2)
