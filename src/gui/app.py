@@ -10,7 +10,7 @@ import sidebar as sd
 import streamlit as st
 
 import utils.shared as shared
-import gui.utils as utils 
+import gui.utils as utils
 from utils.columns import (
     COLS,
     COLS_SQL,
@@ -98,6 +98,9 @@ is_spine = st.sidebar.selectbox(
 )
 
 if is_spine is True:
+    selected_nuts_1_ids = []
+    selected_nuts_2_ids = []
+    selected_nuts_3_ids = []
     is_manual_match = st.sidebar.selectbox(
         cols.MANUAL_MATCH,
         options=[None, True, False],
@@ -112,65 +115,79 @@ if is_spine is True:
         help=f"Choose value for the '{cols.OTHER_MATCH}' column.",
     )
 
-    nuts_name_1s = (
-        con.execute(
-            f"""
-            SELECT DISTINCT {cols_sql.NUTS_NAME_1} FROM data ORDER BY 1
+    nuts_level1 = con.execute(
+        f"""
+            SELECT DISTINCT 
+                {cols_sql.NUTS_ID_1}, 
+                {cols_sql.NUTS_NAME_1}
+            FROM data
+            ORDER BY {cols_sql.NUTS_NAME_1}
             """
-        )
-        .fetchdf()[cols.NUTS_NAME_1]
-        .tolist()
-    )
-    nuts_name_1s = utils.process_nuts_names(nuts_name_1s)
+    ).fetchdf()
 
-    selected_nuts_1s = st.sidebar.multiselect(
+    nuts_name_1s = utils.process_nuts_names(nuts_level1[cols.NUTS_NAME_1].tolist())
+
+    selected_nuts_1_names = st.sidebar.multiselect(
         "NUTS Level 1 region", options=nuts_name_1s, default=nuts_name_1s
     )
-    if selected_nuts_1s:
-        nuts_name_2s = (
-            con.execute(
-                f"""
-                SELECT DISTINCT {cols_sql.NUTS_NAME_2}
-                FROM data
-                WHERE {cols_sql.NUTS_NAME_1} IN ({", ".join(["?"] * len(selected_nuts_1s))})
-                ORDER BY 1
-                """,
-                selected_nuts_1s,  # params for the IN clause
-            )
-            .fetchdf()[cols.NUTS_NAME_2]
-            .tolist()
-        )
-        nuts_name_2s = utils.process_nuts_names(nuts_name_2s)
+    if selected_nuts_1_names:
+        selected_nuts_1_ids = nuts_level1.loc[
+            nuts_level1[cols.NUTS_NAME_1].isin(selected_nuts_1_names), cols.NUTS_ID_1
+        ].tolist()
 
-        selected_nuts_2s = st.sidebar.multiselect(
+        nuts_level2 = con.execute(
+            f"""
+                SELECT DISTINCT 
+                    {cols_sql.NUTS_ID_2}, 
+                    {cols_sql.NUTS_NAME_2}
+                FROM data
+                WHERE {cols_sql.NUTS_NAME_1} IN ({", ".join(["?"] * len(selected_nuts_1_names))})
+                ORDER BY {cols_sql.NUTS_NAME_2}
+                """,
+            selected_nuts_1_names,
+        ).fetchdf()
+
+        nuts_name_2s = utils.process_nuts_names(nuts_level2[cols.NUTS_NAME_2].tolist())
+
+        selected_nuts_2_names = st.sidebar.multiselect(
             "NUTS Level 2 region", options=nuts_name_2s, default=nuts_name_2s, key="nuts_name_2s"
         )
-        if selected_nuts_2s:
-            nuts_name_3s = (
-                con.execute(
-                    f"""
-                    SELECT DISTINCT {cols_sql.NUTS_NAME_3}
+        if selected_nuts_2_names:
+            selected_nuts_2_ids = nuts_level2.loc[
+                nuts_level2[cols.NUTS_NAME_2].isin(selected_nuts_2_names), cols.NUTS_ID_2
+            ].tolist()
+
+            nuts_level3 = con.execute(
+                f"""
+                    SELECT DISTINCT 
+                        {cols_sql.NUTS_ID_3}, 
+                        {cols_sql.NUTS_NAME_3}
                     FROM data
-                    WHERE {cols_sql.NUTS_NAME_2} IN ({", ".join(["?"] * len(selected_nuts_2s))})
+                    WHERE {cols_sql.NUTS_NAME_2} IN ({", ".join(["?"] * len(selected_nuts_2_names))})
                     ORDER BY 1
                     """,
-                    selected_nuts_2s,  # params for the IN clause
-                )
-                .fetchdf()[cols.NUTS_NAME_3]
-                .tolist()
-            )
+                selected_nuts_2_names,
+            ).fetchdf()
 
-            nuts_name_3s = utils.process_nuts_names(nuts_name_3s)
+            nuts_name_3s = utils.process_nuts_names(nuts_level3[cols.NUTS_NAME_3].tolist())
 
-            selected_nuts_3s = st.sidebar.multiselect(
+            selected_nuts_3_names = st.sidebar.multiselect(
                 "NUTS Level 3 region",
                 options=nuts_name_3s,
                 default=nuts_name_3s,
                 key="nuts_name_3s",
             )
+            if len(selected_nuts_3_names):
+                selected_nuts_3_ids = nuts_level3.loc[
+                    nuts_level3[cols.NUTS_NAME_3].isin(selected_nuts_3_names), cols.NUTS_ID_3
+                ].tolist()
 else:
-    selected_nuts_1s = None
-    selected_nuts_2s = None
+    selected_nuts_1_names = None
+    selected_nuts_1_ids = None
+    selected_nuts_2_names = None
+    selected_nuts_2_ids = None
+    selected_nuts_3_names = None
+    selected_nuts_3_ids = None
     is_manual_match = None
     is_other_match = None
 
@@ -220,10 +237,10 @@ clauses.append(f"{cols_sql.SOURCE} IN ({PLACEHOLDERS})")
 params.extend(selected_sources)
 
 # nuts_name_1s
-if selected_nuts_1s:
-    PLACEHOLDERS = ", ".join("?" for _ in selected_nuts_1s)
+if selected_nuts_1_names and len(selected_nuts_1_names) > 0:
+    PLACEHOLDERS = ", ".join("?" for _ in selected_nuts_1_names)
     clauses.append(f"{cols_sql.NUTS_NAME_1} IN ({PLACEHOLDERS})")
-    params.extend(selected_nuts_1s)
+    params.extend(selected_nuts_1_names)
 
 # is spine
 if is_spine is not None:
@@ -448,17 +465,21 @@ with tabs_views[2]:
     st.plotly_chart(fig, use_container_width=True)
 
 with tabs_views[3]:
-    if is_spine is not True:
+    if is_spine is not True or selected_nuts_1_names is None or len(selected_nuts_1_names) == 0:
         st.info(
             f"""
             Geographical distribution is only available when filtering for
-            '{cols.SPINE}' = True.
+            '{cols.SPINE}' = True and selecting at least one '{cols.NUTS_NAME_1}' region.
             """
         )
         st.stop()
 
     nuts = gpd.read_file(shared.SHAPE_FILE).to_crs(epsg=4326)
     nuts = nuts[(nuts.CNTR_CODE == "UK") & (nuts.NUTS_ID != "UKN")].copy()
+
+    nuts = nuts[
+        nuts.NUTS_ID.isin(selected_nuts_1_ids + selected_nuts_2_ids + selected_nuts_3_ids)
+    ].copy()
 
     cols_maps_selections = st.columns(2)
     with cols_maps_selections[0]:
