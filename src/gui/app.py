@@ -477,20 +477,15 @@ with tabs_views[3]:
     nuts = gpd.read_file(shared.SHAPE_FILE).to_crs(epsg=4326)
     nuts = nuts[(nuts.CNTR_CODE == "UK") & (nuts.NUTS_ID != "UKN")].copy()
 
-    nuts = nuts[
-        nuts.NUTS_ID.isin(selected_nuts_1_ids + selected_nuts_2_ids + selected_nuts_3_ids)
-    ].copy()
+    mask = (
+        (nuts["LEVL_CODE"].eq(1) & nuts["NUTS_ID"].isin(selected_nuts_1_ids))
+        | (nuts["LEVL_CODE"].eq(2) & nuts["NUTS_ID"].isin(selected_nuts_2_ids))
+        | (nuts["LEVL_CODE"].eq(3) & nuts["NUTS_ID"].isin(selected_nuts_3_ids))
+    )
 
-    cols_maps_selections = st.columns(2)
-    with cols_maps_selections[0]:
-        nuts_level = st.selectbox("NUTS level to display", options=[1, 2, 3], index=0)
-    with cols_maps_selections[1]:
-        column_to_plot = st.radio(
-            "Choose what to plot on the map",
-            options=[cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS],
-            index=0,
-            horizontal=True,
-        )
+    nuts = nuts[mask].copy()
+
+    nuts_level = 3
     nuts_display = nuts[nuts.LEVL_CODE == nuts_level]
 
     COLUMN_NUTS_ID = f"NUTS ID {nuts_level}"
@@ -524,23 +519,30 @@ with tabs_views[3]:
     nuts_display[cols.TOTAL_VALUE_PAYMENTS] = nuts_display[cols.TOTAL_VALUE_PAYMENTS].fillna(0)
     nuts_display[cols.TOTAL_PAYMENTS] = nuts_display[cols.TOTAL_PAYMENTS].fillna(0)
     nuts_display.set_index("NUTS_ID", inplace=True)
-    fig = px.choropleth(
-        nuts_display,
-        geojson=nuts_display.geometry,
-        locations=nuts_display.index,
-        hover_name="NUTS_NAME",
-        color=column_to_plot,
-        color_continuous_scale="Blues",
-        projection="mercator",
-    )
-    fig.update_geos(fitbounds="locations", visible=False)
-
+   
     cols_maps = st.columns(2)
-    with cols_maps[0]:
+    with cols_maps[1]:
         st.dataframe(
             nuts_display[["NUTS_NAME", cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS]],
             use_container_width=False,
             hide_index=False,
         )
-    with cols_maps[1]:
+    with cols_maps[0]:
+        column_to_plot = st.radio(
+            "Choose what to plot on the map",
+            options=[cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS],
+            index=0,
+            horizontal=True,
+        )
+        fig = px.choropleth(
+            nuts_display,
+            geojson=nuts_display.geometry,
+            locations=nuts_display.index,
+            hover_name="NUTS_NAME",
+            color=column_to_plot,
+            color_continuous_scale="Blues",
+            projection="mercator",
+        )
+        fig.update_geos(fitbounds="locations", visible=False)
+
         st.plotly_chart(fig, use_container_width=True)
