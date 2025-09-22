@@ -1,6 +1,5 @@
 """Home page for the procurement dashboard app."""
 
-from pathlib import Path
 from types import SimpleNamespace
 
 import duckdb
@@ -453,7 +452,8 @@ with tabs_views[3]:
         st.stop()
 
     nuts = gpd.read_file(shared.SHAPE_FILE).to_crs(epsg=4326)
-    nuts = nuts[nuts.CNTR_CODE == "UK"].copy()
+    print(nuts.columns)
+    nuts = nuts[(nuts.CNTR_CODE == "UK") & (nuts.NUTS_ID != "UKN")].copy()
 
     cols_maps_selections = st.columns(2)
     with cols_maps_selections[0]:
