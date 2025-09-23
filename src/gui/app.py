@@ -616,9 +616,10 @@ with tabs_views[3]:
             )
         with col_sels[1]:
             with st.popover("View region aggregates data", width="stretch"):
+                st.text("")
                 st.dataframe(
                     nuts_display[["NUTS_NAME", cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS]],
-                    use_container_width=False,
+                    use_container_width=True,
                     hide_index=False,
                 )
         fig = px.choropleth(
@@ -678,6 +679,7 @@ with tabs_views[4]:
             )
         with cols_selections[1]:
             with st.popover("View registry aggregates data", width="stretch"):
+                st.text("")
                 st.dataframe(
                     dset_reg.reset_index().rename(columns={"Registry": "Code"}),
                     use_container_width=True,
