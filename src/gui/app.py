@@ -533,15 +533,7 @@ with tabs_views[3]:
         nuts_display[cols.TOTAL_PAYMENTS] = nuts_display[cols.TOTAL_PAYMENTS].fillna(0)
         nuts_display.set_index("NUTS_ID", inplace=True)
 
-        # cols_maps = st.columns(2)
-        # with cols_maps[1]:
-        #     st.dataframe(
-        #         nuts_display[["NUTS_NAME", cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS]],
-        #         use_container_width=False,
-        #         hide_index=False,
-        #     )
-        # with cols_maps[0]:
-        col_sels = st.columns(2)
+        col_sels = st.columns([0.2, 0.8])
         with col_sels[0]:
             column_to_plot = st.radio(
                 "Choose what to plot on the map",
@@ -603,7 +595,7 @@ with tabs_views[4]:
         dset_reg["Name"] = dset_reg.index.map(REGISTRIES)
         dset_reg = dset_reg[["Name", cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS]]
 
-        cols_selections = st.columns(2)
+        cols_selections = st.columns([0.2, 0.8])
         with cols_selections[0]:
             column_to_plot = st.radio(
                 "Choose what to plot",
