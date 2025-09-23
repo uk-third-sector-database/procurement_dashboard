@@ -128,7 +128,6 @@ if is_spine is True:
     ).fetchdf()
 
     nuts_name_1s = utils.process_nuts_names(nuts_level1[cols.NUTS_NAME_1].tolist())
-    print(nuts_name_1s)
     selected_nuts_1_names = st.sidebar.multiselect(
         "NUTS Level 1 region", options=nuts_name_1s, default=nuts_name_1s
     )
