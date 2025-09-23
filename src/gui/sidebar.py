@@ -5,7 +5,7 @@ from pathlib import Path
 
 import streamlit as st
 
-import utils.shared as shared
+import utilities.shared as shared
 
 LOGOS = shared.LOGOS
 

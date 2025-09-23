@@ -8,6 +8,18 @@ def quote_ident(name: str) -> str:
     """
     return '"' + name.replace('"', '""') + '"'
 
+REGISTRIES = {
+    "CHC": "Charity Commission, England and Wales",
+    "SC": "Scottish Charity Register",
+    "NIC": "Charity Commission, Northern Ireland",
+    "COH": "Companies House",
+    "COOP": "Co-operatives",
+    "MPR": "Mutuals Public Register",
+    "SHR": "Scottish Housing Register",
+    "SHPE": "Social Housing England",
+    "CIS": "Care Inspectorate Scotland",
+    "CQC": "Care Quality Commission",
+}
 
 COLS = {
     "SOURCE": "Source",
@@ -32,12 +44,25 @@ COLS = {
     "OTHER_MATCH": "Other match to spine?",
     "REMOVED": "Removed?",
     "REMOVAL_DATE": "Removal date",
+    "UID": "uid",
+    # registries
+    "CHC": "CHC",
+    "CIS": "CIS",
+    "COH": "COH",
+    "COOP": "COOP",
+    "CQC": "CQC",
+    "MPR": "MPR",
+    "NIC": "NIC",
+    "SC": "SC",
+    "SHPE": "SHPE",
+    "SHR": "SHR",
     # calculated columns
-    "TOTAL_VALUE_PAYMENTS": "Total amount",
-    "TOTAL_PAYMENTS": "Total transactions",
+    "TOTAL_VALUE_PAYMENTS": "Value",
+    "TOTAL_PAYMENTS": "Transactions",
     "PAYMENTS": "Transactions",
     "VALUE": "Value",
     "DATE": "Date",
+    "REGISTRY": "Registry",
 }
 
 COLS_SQL = {k: quote_ident(v) for k, v in COLS.items()}

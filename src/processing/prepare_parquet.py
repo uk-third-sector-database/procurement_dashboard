@@ -7,14 +7,15 @@ Usage:
     pdm run prepare_parquet.py input.parquet output.parquet
 """
 
+import re
 import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import pandas as pd
 
-import utils.shared as shared
-from utils.columns import COLS
+import utilities.shared as shared
+from utilities.columns import COLS
 
 cols = SimpleNamespace(**COLS)
 
@@ -162,6 +163,15 @@ def prepare_parquet(in_fpath: Path, out_fpath: Path):
                 dset[column_name] = process_longmatch(dset[column_name])
             case "uid":
                 dset[column_name] = process_uid(dset[column_name])
+                column_to_add = "registries"
+                dset[column_to_add] = parse_registries(dset[column_name])
+                all_regs = sorted({r for lst in dset[column_to_add].dropna() for r in lst})
+                print(f"- registries found: {all_regs}")
+                for reg in all_regs:
+                    dset[reg] = dset[column_to_add].apply(
+                        lambda lst, reg=reg: reg in lst if isinstance(lst, list) else False
+                    )
+                    print(f" - {reg}: {dset[reg].sum()} matches")
             case "organisationname":
                 dset[column_name] = process_organisationname(dset[column_name])
             case "fulladdress":
@@ -174,7 +184,7 @@ def prepare_parquet(in_fpath: Path, out_fpath: Path):
                 dset[column_name] = process_registerdate(dset[column_name])
             case "removeddate":
                 dset[column_name] = process_removeddate(dset[column_name])
-                dset['removed'] = dset[column_name].notna()
+                dset["removed"] = dset[column_name].notna()
             case "latitude":
                 dset[column_name] = process_latitude(dset[column_name])
             case "longitude":
@@ -845,6 +855,28 @@ def process_nuts_name(s: pd.Series) -> pd.Series:
     print(f"- processed dtype: {s.dtype}")
 
     return s
+
+
+def parse_registries(uid: pd.Series) -> pd.Series:
+    """Parse the 'uid' column to extract registry codes.
+    Args:
+        uid (pd.Series): Input pandas Series for the 'uid' column.
+    Returns:
+        pd.Series: Series with lists of registry codes extracted from 'uid'.
+    """
+    s = uid.astype("string")
+
+    def one_cell(val: str | None):
+        if val is None or pd.isna(val):
+            return None
+        regs = set()
+        for tok in map(str.strip, val.split(";")):
+            m = re.match(r"^[^-]+-([^-]+)-", tok)
+            if m:
+                regs.add(m.group(1))
+        return sorted(regs) if regs else None
+
+    return s.apply(one_cell)
 
 
 if __name__ == "__main__":

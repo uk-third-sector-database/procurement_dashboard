@@ -1,6 +1,6 @@
 """Utility functions for the GUI."""
 
-import utils.shared as shared
+import utilities.shared as shared
 
 
 def process_nuts_names(nuts_names):

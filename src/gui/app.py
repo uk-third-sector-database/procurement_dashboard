@@ -8,15 +8,17 @@ import pandas as pd
 import plotly.express as px
 import sidebar as sd
 import streamlit as st
+from shapely.geometry.polygon import orient
 
-import utils.shared as shared
 import gui.utils as utils
-from utils.columns import (
+import utilities.shared as shared
+from utilities.columns import (
     COLS,
     COLS_SQL,
     COLUMNS_DATE,
     COLUMNS_TO_DISPLAY_SQL,
     COLUMNS_TO_DISPLAY_STYLES,
+    REGISTRIES,
     quote_ident,
 )
 
@@ -118,7 +120,7 @@ if is_spine is True:
     nuts_level1 = con.execute(
         f"""
             SELECT DISTINCT 
-                {cols_sql.NUTS_ID_1}, 
+                {cols_sql.NUTS_ID_1},
                 {cols_sql.NUTS_NAME_1}
             FROM data
             ORDER BY {cols_sql.NUTS_NAME_1}
@@ -137,8 +139,8 @@ if is_spine is True:
 
         nuts_level2 = con.execute(
             f"""
-                SELECT DISTINCT 
-                    {cols_sql.NUTS_ID_2}, 
+                SELECT DISTINCT
+                    {cols_sql.NUTS_ID_2},
                     {cols_sql.NUTS_NAME_2}
                 FROM data
                 WHERE {cols_sql.NUTS_NAME_1} IN ({", ".join(["?"] * len(selected_nuts_1_names))})
@@ -160,10 +162,11 @@ if is_spine is True:
             nuts_level3 = con.execute(
                 f"""
                     SELECT DISTINCT 
-                        {cols_sql.NUTS_ID_3}, 
+                        {cols_sql.NUTS_ID_3},
                         {cols_sql.NUTS_NAME_3}
                     FROM data
-                    WHERE {cols_sql.NUTS_NAME_2} IN ({", ".join(["?"] * len(selected_nuts_2_names))})
+                    WHERE {cols_sql.NUTS_NAME_2} IN
+                        ({", ".join(["?"] * len(selected_nuts_2_names))})
                     ORDER BY 1
                     """,
                 selected_nuts_2_names,
@@ -331,13 +334,19 @@ with cols_metrics[1].container(border=True):
         st.metric("🤝 Transactions", f"{n_transactions:,}")
 with cols_metrics[2].container(border=True):
     if is_spine is not True and total_amount_spine is not None:
-        st.metric("💷 Total amount - all", f"{total_amount:,.0f}")
-        st.metric("Total amount - spine (TSO)", f"{total_amount_spine:,.0f}")
+        st.metric("💷 Value - all", f"{total_amount:,.0f}")
+        st.metric("Value - spine (TSO)", f"{total_amount_spine:,.0f}")
     else:
-        st.metric("💷 Total amount", f"{total_amount:,.0f}")
+        st.metric("💷 Value", f"{total_amount:,.0f}")
 
 tabs_views = st.tabs(
-    ["Raw data", "Aggregates by supplier", "Timecourse", "Geographical distribution"]
+    [
+        "Raw data",
+        "Supplier distributions",
+        "Timecourses",
+        "Geographical distributions",
+        "Registry distributions",
+    ]
 )
 
 with tabs_views[0]:
@@ -427,6 +436,7 @@ with tabs_views[1]:
             )
         dset_styled = dset_suppliers.style.format(COLUMNS_TO_DISPLAY_STYLES)
         st.dataframe(dset_styled, use_container_width=True, hide_index=True)
+
 with tabs_views[2]:
     COLUMN_DATE = cols.DATE
     COLUMN_TRANSACTIONS = cols.PAYMENTS
@@ -448,7 +458,11 @@ with tabs_views[2]:
     dset_tcourse_transactions[COLUMN_DATE] = pd.to_datetime(dset_tcourse_transactions[COLUMN_DATE])
 
     column_to_plot = st.radio(
-        "Choose what to plot", options=[COLUMN_TRANSACTIONS, COLUMN_VALUE], index=0, horizontal=True
+        "Choose what to plot",
+        options=[COLUMN_TRANSACTIONS, COLUMN_VALUE],
+        index=0,
+        horizontal=True,
+        key="radio_column_to_plot_timecourse",
     )
 
     fig = px.bar(
@@ -472,68 +486,77 @@ with tabs_views[3]:
             '{cols.SPINE}' = True and selecting at least one '{cols.NUTS_NAME_1}' region.
             """
         )
-        st.stop()
+    else:
+        nuts = gpd.read_file(shared.SHAPE_FILE).to_crs(epsg=4326)
+        nuts = nuts[(nuts.CNTR_CODE == "UK") & (nuts.NUTS_ID != "UKN")].copy()
 
-    nuts = gpd.read_file(shared.SHAPE_FILE).to_crs(epsg=4326)
-    nuts = nuts[(nuts.CNTR_CODE == "UK") & (nuts.NUTS_ID != "UKN")].copy()
+        mask = (
+            (nuts["LEVL_CODE"].eq(1) & nuts["NUTS_ID"].isin(selected_nuts_1_ids))
+            | (nuts["LEVL_CODE"].eq(2) & nuts["NUTS_ID"].isin(selected_nuts_2_ids))
+            | (nuts["LEVL_CODE"].eq(3) & nuts["NUTS_ID"].isin(selected_nuts_3_ids))
+        )
 
-    mask = (
-        (nuts["LEVL_CODE"].eq(1) & nuts["NUTS_ID"].isin(selected_nuts_1_ids))
-        | (nuts["LEVL_CODE"].eq(2) & nuts["NUTS_ID"].isin(selected_nuts_2_ids))
-        | (nuts["LEVL_CODE"].eq(3) & nuts["NUTS_ID"].isin(selected_nuts_3_ids))
-    )
+        nuts = nuts[mask].copy()
 
-    nuts = nuts[mask].copy()
+        nuts_level = 3
+        nuts_display = nuts[nuts.LEVL_CODE == nuts_level]
 
-    nuts_level = 3
-    nuts_display = nuts[nuts.LEVL_CODE == nuts_level]
+        COLUMN_NUTS_ID = f"NUTS ID {nuts_level}"
+        dset_nuts = con.execute(
+            f"""
+                WITH filtered AS (
+                    SELECT {quote_ident(COLUMN_NUTS_ID)},
+                            {cols_sql.AMOUNT}
+                FROM data
+                WHERE {WHERE_CLAUSE}
+                ),
+                agg AS (
+                    SELECT
+                        {quote_ident(COLUMN_NUTS_ID)},
+                        SUM({cols_sql.AMOUNT}) AS {cols_sql.TOTAL_VALUE_PAYMENTS},
+                        COUNT(*) AS {cols_sql.TOTAL_PAYMENTS}
+                    FROM filtered
+                    WHERE {quote_ident(COLUMN_NUTS_ID)} IS NOT NULL
+                    GROUP BY {quote_ident(COLUMN_NUTS_ID)}
+                )
+                SELECT *
+                FROM agg
+            """,
+            params,
+        ).fetchdf()
 
-    COLUMN_NUTS_ID = f"NUTS ID {nuts_level}"
-    dset_nuts = con.execute(
-        f"""
-            WITH filtered AS (
-                SELECT {quote_ident(COLUMN_NUTS_ID)},
-                        {cols_sql.AMOUNT}
-            FROM data
-            WHERE {WHERE_CLAUSE}
-            ),
-            agg AS (
-                SELECT
-                    {quote_ident(COLUMN_NUTS_ID)},
-                    SUM({cols_sql.AMOUNT}) AS {cols_sql.TOTAL_VALUE_PAYMENTS},
-                    COUNT(*) AS {cols_sql.TOTAL_PAYMENTS}
-                FROM filtered
-                WHERE {quote_ident(COLUMN_NUTS_ID)} IS NOT NULL
-                GROUP BY {quote_ident(COLUMN_NUTS_ID)}
+        # merge nuts_display with dset_nuts on NUTS_ID_1
+        nuts_display = nuts_display.merge(
+            dset_nuts, how="left", left_on="NUTS_ID", right_on=COLUMN_NUTS_ID
+        )
+        nuts_display[cols.TOTAL_VALUE_PAYMENTS] = nuts_display[cols.TOTAL_VALUE_PAYMENTS].fillna(0)
+        nuts_display[cols.TOTAL_PAYMENTS] = nuts_display[cols.TOTAL_PAYMENTS].fillna(0)
+        nuts_display.set_index("NUTS_ID", inplace=True)
+
+        # cols_maps = st.columns(2)
+        # with cols_maps[1]:
+        #     st.dataframe(
+        #         nuts_display[["NUTS_NAME", cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS]],
+        #         use_container_width=False,
+        #         hide_index=False,
+        #     )
+        # with cols_maps[0]:
+        col_sels = st.columns(2)
+        with col_sels[0]:
+            column_to_plot = st.radio(
+                "Choose what to plot on the map",
+                options=[cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS],
+                index=0,
+                horizontal=True,
+                key="radio_column_to_plot_choropleth",
             )
-            SELECT *
-            FROM agg
-        """,
-        params,
-    ).fetchdf()
-
-    # merge nuts_display with dset_nuts on NUTS_ID_1
-    nuts_display = nuts_display.merge(
-        dset_nuts, how="left", left_on="NUTS_ID", right_on=COLUMN_NUTS_ID
-    )
-    nuts_display[cols.TOTAL_VALUE_PAYMENTS] = nuts_display[cols.TOTAL_VALUE_PAYMENTS].fillna(0)
-    nuts_display[cols.TOTAL_PAYMENTS] = nuts_display[cols.TOTAL_PAYMENTS].fillna(0)
-    nuts_display.set_index("NUTS_ID", inplace=True)
-   
-    cols_maps = st.columns(2)
-    with cols_maps[1]:
-        st.dataframe(
-            nuts_display[["NUTS_NAME", cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS]],
-            use_container_width=False,
-            hide_index=False,
-        )
-    with cols_maps[0]:
-        column_to_plot = st.radio(
-            "Choose what to plot on the map",
-            options=[cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS],
-            index=0,
-            horizontal=True,
-        )
+        with col_sels[1]:
+            with st.popover("View region aggregates data", width="stretch"):
+                st.dataframe(
+                    nuts_display[["NUTS_NAME", cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS]],
+                    use_container_width=False,
+                    hide_index=False,
+                )
         fig = px.choropleth(
             nuts_display,
             geojson=nuts_display.geometry,
@@ -546,3 +569,83 @@ with tabs_views[3]:
         fig.update_geos(fitbounds="locations", visible=False)
 
         st.plotly_chart(fig, use_container_width=True)
+
+with tabs_views[4]:
+    if is_spine is not True:
+        st.info(
+            f"""
+            Registry distribution is only available when filtering for
+            '{cols.SPINE}' = True.
+            """
+        )
+        st.stop()
+    else:
+        dset_reg = pd.DataFrame()
+        for registry in REGISTRIES.keys():
+            col_flag = quote_ident(registry)
+            col_amount = cols_sql.AMOUNT
+
+            dset_local = con.execute(
+                f"""
+                    SELECT
+                        COUNT_IF({col_flag}) AS {cols_sql.TOTAL_PAYMENTS},
+                        SUM(CASE WHEN {col_flag} THEN {col_amount} ELSE 0 END)
+                            AS {cols_sql.TOTAL_VALUE_PAYMENTS}
+                    FROM data
+                    WHERE {WHERE_CLAUSE}
+                """,
+                params,
+            ).fetchdf()
+            dset_local.index = [registry]
+            dset_reg = pd.concat([dset_reg, dset_local], axis=0)
+
+        dset_reg.index.name = cols.REGISTRY
+        dset_reg["Name"] = dset_reg.index.map(REGISTRIES)
+        dset_reg = dset_reg[["Name", cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS]]
+
+        cols_selections = st.columns(2)
+        with cols_selections[0]:
+            column_to_plot = st.radio(
+                "Choose what to plot",
+                options=[cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS],
+                index=0,
+                horizontal=True,
+                key="radio_column_to_plot_registry",
+            )
+        with cols_selections[1]:
+            with st.popover("View registry aggregates data", width="stretch"):
+                st.dataframe(
+                    dset_reg.reset_index().rename(columns={"Registry": "Code"}),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+
+        cols_regs = st.columns(2)
+        with cols_regs[0]:
+            fig = px.bar(
+                dset_reg.reset_index(),
+                y=cols.REGISTRY,
+                x=column_to_plot,
+                title=column_to_plot,
+                orientation="h",
+                color=cols.REGISTRY,
+                color_discrete_sequence=px.colors.qualitative.Set1,
+                labels={"Registry": "", column_to_plot: ""},
+            )
+            fig.update_traces(opacity=0.9, showlegend=False)
+            st.plotly_chart(fig, use_container_width=True)
+        with cols_regs[1]:
+            fig = px.pie(
+                dset_reg.reset_index(),
+                values=column_to_plot,
+                names=cols.REGISTRY,
+                title="",
+                hole=0.4,
+                color=cols.REGISTRY,
+                color_discrete_sequence=px.colors.qualitative.Set1,
+            )
+            fig.update_traces(opacity=0.9, showlegend=False)
+            fig.update_traces(
+                textinfo="label+percent", textposition="auto", insidetextorientation="radial"
+            )
+            st.plotly_chart(fig, use_container_width=True)
