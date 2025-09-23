@@ -234,10 +234,10 @@ def prepare_parquet(in_fpath: Path, out_fpath: Path):
     dset = dset.loc[dset[column_year].between(MIN_YEAR, MAX_YEAR)]
     print(f"- records with {column_name} between {MIN_YEAR} and {MAX_YEAR}: {dset.shape[0]}")
 
-    # drop data from NI
-    print("Filtering out records from Northern Ireland (NUTS ID 1 = UKN or null)")
-    dset = dset.drop(dset[dset["nuts_id_1"] == "UKN"].index)
-    print(f"- records after filtering out NI: {dset.shape[0]}")
+    # # drop data from NI
+    # print("Filtering out records from Northern Ireland (NUTS ID 1 = UKN or null)")
+    # dset = dset.drop(dset[dset["nuts_id_1"] == "UKN"].index)
+    # print(f"- records after filtering out NI: {dset.shape[0]}")
 
     # rename columns
     dset = dset.rename(columns=COLUMN_NAMES)
