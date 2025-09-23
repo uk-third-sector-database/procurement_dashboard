@@ -29,6 +29,13 @@ TEXT_EITHER = "Do not apply filter"
 
 NULLS = "NULLS LAST"
 
+KEY_NUTS_NAME_SELECTION_1 = "multiselect_nuts_name_1"
+KEY_NUTS_NAME_SELECTION_ALL_1 = "checkbox_select_all_nuts_1"
+KEY_NUTS_NAME_SELECTION_2 = "multiselect_nuts_name_2"
+KEY_NUTS_NAME_SELECTION_ALL_2 = "checkbox_select_all_nuts_2"
+KEY_NUTS_NAME_SELECTION_3 = "multiselect_nuts_name_3"
+KEY_NUTS_NAME_SELECTION_ALL_3 = "checkbox_select_all_nuts_3"
+
 st.set_page_config(
     layout="wide",
     page_title="Procurement Dashboard",
@@ -103,19 +110,6 @@ if is_spine is True:
     selected_nuts_1_ids = []
     selected_nuts_2_ids = []
     selected_nuts_3_ids = []
-    is_manual_match = st.sidebar.selectbox(
-        cols.MANUAL_MATCH,
-        options=[None, True, False],
-        format_func=lambda x: TEXT_EITHER if x is None else str(x),
-        help=f"Choose value for the '{cols.MANUAL_MATCH}' column.",
-    )
-
-    is_other_match = st.sidebar.selectbox(
-        cols.OTHER_MATCH,
-        options=[None, True, False],
-        format_func=lambda x: TEXT_EITHER if x is None else str(x),
-        help=f"Choose value for the '{cols.OTHER_MATCH}' column.",
-    )
 
     nuts_level1 = con.execute(
         f"""
@@ -128,8 +122,26 @@ if is_spine is True:
     ).fetchdf()
 
     nuts_name_1s = utils.process_nuts_names(nuts_level1[cols.NUTS_NAME_1].tolist())
+
+    if KEY_NUTS_NAME_SELECTION_1 not in st.session_state:
+        st.session_state[KEY_NUTS_NAME_SELECTION_1] = []
+    if KEY_NUTS_NAME_SELECTION_ALL_1 not in st.session_state:
+        st.session_state[KEY_NUTS_NAME_SELECTION_ALL_1] = False
+
+    cols_nuts_1 = st.sidebar.columns([0.75, 0.25], gap=None, vertical_alignment="center")
+    cols_nuts_1[0].text("NUTS Level 1")
+    with cols_nuts_1[1]:
+        select_all_nuts_names_1 = st.checkbox("All", key=KEY_NUTS_NAME_SELECTION_ALL_1)
+    if select_all_nuts_names_1 and st.session_state[KEY_NUTS_NAME_SELECTION_1] != nuts_name_1s:
+        st.session_state[KEY_NUTS_NAME_SELECTION_1] = nuts_name_1s
+        st.rerun()
+
     selected_nuts_1_names = st.sidebar.multiselect(
-        "NUTS Level 1 region", options=nuts_name_1s, default=nuts_name_1s
+        "NUTS Level 1",
+        options=nuts_name_1s,
+        key=KEY_NUTS_NAME_SELECTION_1,
+        label_visibility="collapsed",
+        disabled=select_all_nuts_names_1,
     )
     if selected_nuts_1_names:
         selected_nuts_1_ids = nuts_level1.loc[
@@ -150,9 +162,27 @@ if is_spine is True:
 
         nuts_name_2s = utils.process_nuts_names(nuts_level2[cols.NUTS_NAME_2].tolist())
 
+        if KEY_NUTS_NAME_SELECTION_2 not in st.session_state:
+            st.session_state[KEY_NUTS_NAME_SELECTION_2] = []
+        if KEY_NUTS_NAME_SELECTION_ALL_2 not in st.session_state:
+            st.session_state[KEY_NUTS_NAME_SELECTION_ALL_2] = False
+
+        cols_nuts_2 = st.sidebar.columns([0.75, 0.25], gap=None, vertical_alignment="center")
+        cols_nuts_2[0].text("NUTS Level 2")
+        with cols_nuts_2[1]:
+            select_all_nuts_names_2 = st.checkbox("All", key=KEY_NUTS_NAME_SELECTION_ALL_2)
+        if select_all_nuts_names_2 and st.session_state[KEY_NUTS_NAME_SELECTION_2] != nuts_name_2s:
+            st.session_state[KEY_NUTS_NAME_SELECTION_2] = nuts_name_2s
+            st.rerun()
+
         selected_nuts_2_names = st.sidebar.multiselect(
-            "NUTS Level 2 region", options=nuts_name_2s, default=nuts_name_2s, key="nuts_name_2s"
+            "NUTS Level 2",
+            options=nuts_name_2s,
+            key=KEY_NUTS_NAME_SELECTION_2,
+            label_visibility="collapsed",
+            disabled=select_all_nuts_names_2,
         )
+
         if selected_nuts_2_names:
             selected_nuts_2_ids = nuts_level2.loc[
                 nuts_level2[cols.NUTS_NAME_2].isin(selected_nuts_2_names), cols.NUTS_ID_2
@@ -173,16 +203,48 @@ if is_spine is True:
 
             nuts_name_3s = utils.process_nuts_names(nuts_level3[cols.NUTS_NAME_3].tolist())
 
+            if KEY_NUTS_NAME_SELECTION_3 not in st.session_state:
+                st.session_state[KEY_NUTS_NAME_SELECTION_3] = []
+            if KEY_NUTS_NAME_SELECTION_ALL_3 not in st.session_state:
+                st.session_state[KEY_NUTS_NAME_SELECTION_ALL_3] = False
+
+            cols_nuts_3 = st.sidebar.columns([0.75, 0.25], gap=None, vertical_alignment="center")
+            cols_nuts_3[0].text("NUTS Level 3")
+            with cols_nuts_3[1]:
+                select_all_nuts_names_3 = st.checkbox("All", key=KEY_NUTS_NAME_SELECTION_ALL_3)
+            if (
+                select_all_nuts_names_3
+                and st.session_state[KEY_NUTS_NAME_SELECTION_3] != nuts_name_3s
+            ):
+                st.session_state[KEY_NUTS_NAME_SELECTION_3] = nuts_name_3s
+                st.rerun()
+
             selected_nuts_3_names = st.sidebar.multiselect(
-                "NUTS Level 3 region",
+                "NUTS Level 3",
                 options=nuts_name_3s,
-                default=nuts_name_3s,
-                key="nuts_name_3s",
+                key=KEY_NUTS_NAME_SELECTION_3,
+                label_visibility="collapsed",
+                disabled=select_all_nuts_names_3,
             )
+
             if len(selected_nuts_3_names):
                 selected_nuts_3_ids = nuts_level3.loc[
                     nuts_level3[cols.NUTS_NAME_3].isin(selected_nuts_3_names), cols.NUTS_ID_3
                 ].tolist()
+    is_manual_match = st.sidebar.selectbox(
+        cols.MANUAL_MATCH,
+        options=[None, True, False],
+        format_func=lambda x: TEXT_EITHER if x is None else str(x),
+        help=f"Choose value for the '{cols.MANUAL_MATCH}' column.",
+    )
+
+    is_other_match = st.sidebar.selectbox(
+        cols.OTHER_MATCH,
+        options=[None, True, False],
+        format_func=lambda x: TEXT_EITHER if x is None else str(x),
+        help=f"Choose value for the '{cols.OTHER_MATCH}' column.",
+    )
+
 else:
     selected_nuts_1_names = None
     selected_nuts_1_ids = None
@@ -192,6 +254,8 @@ else:
     selected_nuts_3_ids = None
     is_manual_match = None
     is_other_match = None
+    del st.session_state[KEY_NUTS_NAME_SELECTION_1]
+    del st.session_state[KEY_NUTS_NAME_SELECTION_ALL_1]
 
 is_removed = st.sidebar.selectbox(
     cols.REMOVED,
@@ -478,11 +542,19 @@ with tabs_views[2]:
     st.plotly_chart(fig, use_container_width=True)
 
 with tabs_views[3]:
-    if is_spine is not True or selected_nuts_1_names is None or len(selected_nuts_1_names) == 0:
+    if (
+        is_spine is not True
+        or selected_nuts_1_names is None
+        or len(selected_nuts_1_names) == 0
+        or selected_nuts_2_names is None
+        or len(selected_nuts_2_names) == 0
+        or select_all_nuts_names_3 is None
+        or len(selected_nuts_3_names) == 0
+    ):
         st.info(
             f"""
             Geographical distribution is only available when filtering for
-            '{cols.SPINE}' = True and selecting at least one '{cols.NUTS_NAME_1}' region.
+            '{cols.SPINE}' = True and valid selections for all the NUTS levels.
             """
         )
     else:
