@@ -263,7 +263,7 @@ else:
         del st.session_state[KEY_NUTS_NAME_SELECTION_ALL_3]
     except KeyError:
         pass
-    
+
 is_removed = st.sidebar.selectbox(
     cols.REMOVED,
     options=[None, True, False],
@@ -549,11 +549,7 @@ with tabs_views[2]:
     st.plotly_chart(fig, use_container_width=True)
 
 with tabs_views[3]:
-    if (
-        is_spine is not True
-        or selected_nuts_1_names is None
-        or len(selected_nuts_1_names) == 0
-    ):
+    if is_spine is not True or selected_nuts_1_names is None or len(selected_nuts_1_names) == 0:
         st.info(
             f"""
             Geographical distribution is only available when filtering for
@@ -608,7 +604,7 @@ with tabs_views[3]:
         nuts_display[cols.TOTAL_PAYMENTS] = nuts_display[cols.TOTAL_PAYMENTS].fillna(0)
         nuts_display.set_index("NUTS_ID", inplace=True)
 
-        col_sels = st.columns([0.2, 0.8])
+        col_sels = st.columns(2)
         with col_sels[0]:
             column_to_plot = st.radio(
                 "Choose what to plot on the map",
@@ -618,26 +614,43 @@ with tabs_views[3]:
                 key="radio_column_to_plot_choropleth",
             )
         with col_sels[1]:
-            with st.popover("View region aggregates data", width="stretch"):
+            with st.popover("View legend", width="stretch"):
                 st.text("")
                 st.dataframe(
-                    nuts_display[["NUTS_NAME", cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS]],
+                    nuts_display[["NUTS_NAME"]],
                     use_container_width=True,
                     hide_index=False,
                 )
-        fig = px.choropleth(
-            nuts_display,
-            geojson=nuts_display.geometry,
-            locations=nuts_display.index,
-            hover_name="NUTS_NAME",
-            color=column_to_plot,
-            color_continuous_scale="Blues",
-            projection="mercator",
-        )
-        fig.update_geos(fitbounds="locations", visible=False)
+        cols_maps = st.columns(2)
+        with cols_maps[0]:
+            fig = px.choropleth(
+                nuts_display,
+                geojson=nuts_display.geometry,
+                locations=nuts_display.index,
+                hover_name="NUTS_NAME",
+                color=column_to_plot,
+                color_continuous_scale="Blues",
+                projection="mercator",
+            )
+            fig.update_geos(fitbounds="locations", visible=False)
 
-        st.plotly_chart(fig, use_container_width=True)
+            fig.update_layout(
+                margin=dict(l=0, r=0, t=20, b=0),
+            )
 
+            fig.update_layout(
+                coloraxis_colorbar=dict(
+                    orientation="h", x=0.5, xanchor="center", y=1.05, yanchor="bottom"
+                )
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
+        with cols_maps[1]:
+            st.dataframe(
+                nuts_display[[cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS]],
+                use_container_width=True,
+                hide_index=False,
+            )
 with tabs_views[4]:
     if is_spine is not True:
         st.info(
