@@ -254,9 +254,16 @@ else:
     selected_nuts_3_ids = None
     is_manual_match = None
     is_other_match = None
-    del st.session_state[KEY_NUTS_NAME_SELECTION_1]
-    del st.session_state[KEY_NUTS_NAME_SELECTION_ALL_1]
-
+    try:
+        del st.session_state[KEY_NUTS_NAME_SELECTION_1]
+        del st.session_state[KEY_NUTS_NAME_SELECTION_ALL_1]
+        del st.session_state[KEY_NUTS_NAME_SELECTION_2]
+        del st.session_state[KEY_NUTS_NAME_SELECTION_ALL_2]
+        del st.session_state[KEY_NUTS_NAME_SELECTION_3]
+        del st.session_state[KEY_NUTS_NAME_SELECTION_ALL_3]
+    except KeyError:
+        pass
+    
 is_removed = st.sidebar.selectbox(
     cols.REMOVED,
     options=[None, True, False],
@@ -546,10 +553,6 @@ with tabs_views[3]:
         is_spine is not True
         or selected_nuts_1_names is None
         or len(selected_nuts_1_names) == 0
-        or selected_nuts_2_names is None
-        or len(selected_nuts_2_names) == 0
-        or select_all_nuts_names_3 is None
-        or len(selected_nuts_3_names) == 0
     ):
         st.info(
             f"""
