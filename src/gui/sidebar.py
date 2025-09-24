@@ -22,7 +22,7 @@ def image_with_link(image_path: Path, link_url: str, width: int = 100) -> None:
     )
 
 
-def display() -> None:
+def top() -> None:
     """Build the sidebar for the Streamlit app."""
 
     st.sidebar.header("UK Third Sector Database")

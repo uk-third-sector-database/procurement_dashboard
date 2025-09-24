@@ -2,15 +2,16 @@
 
 from types import SimpleNamespace
 
-import duckdb
 import geopandas as gpd
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+import gui.db as db
 import gui.sidebar as sd
 import gui.utils as utils
 import utilities.shared as shared
+from gui.content import TEXT, WIDGETS
 from utilities.columns import (
     COLS,
     COLS_SQL,
@@ -23,8 +24,9 @@ from utilities.columns import (
 
 cols = SimpleNamespace(**COLS)
 cols_sql = SimpleNamespace(**COLS_SQL)
+text = SimpleNamespace(**TEXT)
+widgets = SimpleNamespace(**WIDGETS)
 
-TEXT_EITHER = "Do not apply filter"
 
 NULLS = "NULLS LAST"
 
@@ -37,74 +39,67 @@ KEY_NUTS_NAME_SELECTION_ALL_3 = "checkbox_select_all_nuts_3"
 
 st.set_page_config(
     layout="wide",
-    page_title="Procurement Dashboard",
+    page_title=text.APP_TITLE,
     page_icon=":receipt:",
     initial_sidebar_state="expanded",
 )
 
-sd.display()
+# display the sidebar top
+sd.top()
 
-# configure the relation to the parquet data file
-# -----------------------------------------------
-# establish a connection to DuckDB and open a relation with the parquet file
-con = duckdb.connect()
-rel = con.read_parquet(str(shared.FILEPATH))
-rel.create_view("data", replace=True)
+# get the cached DuckDB connection with the data loaded as a view
+con = db.get_con()
 
-# get the data columns
-# column_names = (
-#     con.execute("SELECT name FROM pragma_table_info('data')")
-#     .fetchdf()["name"]
-#     .tolist()
-# )
-# print(column_names)
+# sidebar widget to select the number of records to display
+n_displayed_records = st.sidebar.number_input(**widgets.RECORDS_TO_DISPLAY)
 
-# build the sidebar display settings
-n_displayed_records = st.sidebar.number_input(
-    "Maximum number of records to display", min_value=10, max_value=500, value=250, step=10
-)
+# sidebar widget to select the sources to display
+sources = db.fetch_distinct_values(con, cols.SOURCE)
+selected_sources = st.sidebar.multiselect(cols.SOURCE, options=sources, default=sources)
+if not selected_sources:
+    st.sidebar.warning(text.ERROR_NO_SOURCE_SELECTED)
+    st.stop()
 
-
-# get data from the file to build various widgets
-sources = (
-    con.execute(
-        f"""
-        SELECT DISTINCT {cols_sql.SOURCE} FROM data ORDER BY 1
-        """
-    )
-    .fetchdf()[cols.SOURCE]
-    .tolist()
-)
-
-
+# sidebar widget to select the payment date range with reset button
+dmin, dmax = db.fetch_date_range(con, cols_sql.PAYMENT_DATE)
 KEY_PAYMENT_DATE_RANGE = f"{cols.PAYMENT_DATE}_range"
-row = con.execute(
-    f"""
-    SELECT 
-    MIN(CAST({cols_sql.PAYMENT_DATE} AS DATE)),
-    MAX(CAST({cols_sql.PAYMENT_DATE} AS DATE))
-    FROM data
-    """
-).fetchone()
-assert row is not None, "Payment date min/max cannot be retrieved"
-dmin, dmax = row
 if KEY_PAYMENT_DATE_RANGE not in st.session_state:
-    # set the initial value to the full range
     st.session_state[KEY_PAYMENT_DATE_RANGE] = (dmin, dmax)
 
-selected_sources = st.sidebar.multiselect(
-    cols.SOURCE,
-    options=sources,
-    default=sources,
-    help="Select multiple sources to filter the dataset.",
+date_cols = st.sidebar.columns([7, 1], vertical_alignment="bottom")
+with date_cols[1]:
+    if st.button(**widgets.DATE_RANGE_RESET):
+        st.session_state[KEY_PAYMENT_DATE_RANGE] = (dmin, dmax)
+with date_cols[0]:
+    date_range = date_cols[0].date_input(
+        cols.PAYMENT_DATE,
+        min_value=dmin,
+        max_value=dmax,
+        key=KEY_PAYMENT_DATE_RANGE,
+        **widgets.DATE_RANGE,
+    )
+
+if not (isinstance(date_range, tuple | list) and len(date_range) == 2):
+    st.sidebar.warning(text.ERROR_INCOMPLETE_DATE_RANGE)
+    st.stop()
+else:
+    start_date, end_date = date_range
+    if start_date > end_date:
+        st.sidebar.warning(text.ERROR_INVALID_DATE_RANGE)
+        st.stop()
+
+# sidebar widget to filter for removed records
+is_removed = st.sidebar.selectbox(
+    cols.REMOVED,
+    options=[None, True, False],
+    format_func=lambda x: text.OPTION_NEITHER if x is None else str(x),
 )
 
-
+# sidebar widget to filter for spine records
 is_spine = st.sidebar.selectbox(
     cols.SPINE,
     options=[None, True, False],
-    format_func=lambda x: TEXT_EITHER if x is None else str(x),
-    help=f"Choose value for the '{cols.SPINE}' column.",
+    format_func=lambda x: text.OPTION_NEITHER if x is None else str(x),
 )
 
 if is_spine is True:
@@ -112,17 +107,19 @@ if is_spine is True:
     selected_nuts_2_ids = []
     selected_nuts_3_ids = []
 
-    nuts_level1 = con.execute(
-        f"""
-            SELECT DISTINCT 
-                {cols_sql.NUTS_ID_1},
-                {cols_sql.NUTS_NAME_1}
-            FROM data
-            ORDER BY {cols_sql.NUTS_NAME_1}
-            """
-    ).fetchdf()
+    # nuts_level1 = con.execute(
+    #     f"""
+    #         SELECT DISTINCT
+    #             {cols_sql.NUTS_ID_1},
+    #             {cols_sql.NUTS_NAME_1}
+    #         FROM data
+    #         ORDER BY {cols_sql.NUTS_NAME_1}
+    #         """
+    # ).fetchdf()
 
-    nuts_name_1s = utils.process_nuts_names(nuts_level1[cols.NUTS_NAME_1].tolist())
+    # nuts_name_1s = utils.process_nuts_names(nuts_level1[cols.NUTS_NAME_1].tolist())
+
+    nuts_level1, nuts_name_1s = db.fetch_nuts_level(con, level=1, where=None, params=[])
 
     if KEY_NUTS_NAME_SELECTION_1 not in st.session_state:
         st.session_state[KEY_NUTS_NAME_SELECTION_1] = []
@@ -149,19 +146,29 @@ if is_spine is True:
             nuts_level1[cols.NUTS_NAME_1].isin(selected_nuts_1_names), cols.NUTS_ID_1
         ].tolist()
 
-        nuts_level2 = con.execute(
-            f"""
-                SELECT DISTINCT
-                    {cols_sql.NUTS_ID_2},
-                    {cols_sql.NUTS_NAME_2}
-                FROM data
-                WHERE {cols_sql.NUTS_NAME_1} IN ({", ".join(["?"] * len(selected_nuts_1_names))})
-                ORDER BY {cols_sql.NUTS_NAME_2}
-                """,
-            selected_nuts_1_names,
-        ).fetchdf()
+        # nuts_level2 = con.execute(
+        #     f"""
+        #         SELECT DISTINCT
+        #             {cols_sql.NUTS_ID_2},
+        #             {cols_sql.NUTS_NAME_2}
+        #         FROM data
+        #         WHERE {cols_sql.NUTS_NAME_1} IN ({", ".join(["?"] * len(selected_nuts_1_names))})
+        #         ORDER BY {cols_sql.NUTS_NAME_2}
+        #         """,
+        #     selected_nuts_1_names,
+        # ).fetchdf()
 
-        nuts_name_2s = utils.process_nuts_names(nuts_level2[cols.NUTS_NAME_2].tolist())
+        # nuts_name_2s = utils.process_nuts_names(nuts_level2[cols.NUTS_NAME_2].tolist())
+
+        PLACEHOLDERS = ", ".join("?" for _ in selected_nuts_1_names)
+        WHERE_CLAUSE = f"{quote_ident(COLS['NUTS_NAME_1'])} IN ({PLACEHOLDERS})"
+        nuts_level2, nuts_name_2s = db.fetch_nuts_level(
+            con=con,
+            level=2,
+            where=WHERE_CLAUSE,
+            params=selected_nuts_1_names,
+            order_by="COLS['NUTS_NAME_2']",
+        )
 
         if KEY_NUTS_NAME_SELECTION_2 not in st.session_state:
             st.session_state[KEY_NUTS_NAME_SELECTION_2] = []
@@ -235,17 +242,16 @@ if is_spine is True:
     is_manual_match = st.sidebar.selectbox(
         cols.MANUAL_MATCH,
         options=[None, True, False],
-        format_func=lambda x: TEXT_EITHER if x is None else str(x),
+        format_func=lambda x: text.OPTION_NEITHER if x is None else str(x),
         help=f"Choose value for the '{cols.MANUAL_MATCH}' column.",
     )
 
     is_other_match = st.sidebar.selectbox(
         cols.OTHER_MATCH,
         options=[None, True, False],
-        format_func=lambda x: TEXT_EITHER if x is None else str(x),
+        format_func=lambda x: text.OPTION_NEITHER if x is None else str(x),
         help=f"Choose value for the '{cols.OTHER_MATCH}' column.",
     )
-
 else:
     selected_nuts_1_names: list | None = None
     selected_nuts_1_ids: list | None = None
@@ -265,42 +271,6 @@ else:
     except KeyError:
         pass
 
-is_removed = st.sidebar.selectbox(
-    cols.REMOVED,
-    options=[None, True, False],
-    format_func=lambda x: TEXT_EITHER if x is None else str(x),
-    help=f"Choose value for the '{cols.REMOVED}' column.",
-)
-
-date_cols = st.sidebar.columns([7, 1])
-# two lines to vertically align the button with the date input
-date_cols[1].markdown(" ")
-date_cols[1].markdown(" ")
-if date_cols[1].button("↺", help="Reset date range"):
-    st.session_state[KEY_PAYMENT_DATE_RANGE] = (dmin, dmax)
-# value not given because it is set in the session state KEY_PAYMENT_DATE_RANGE
-date_range = date_cols[0].date_input(
-    cols.PAYMENT_DATE,
-    min_value=dmin,
-    max_value=dmax,
-    format="DD/MM/YYYY",
-    help="Select the date range for the payment date.",
-    key=KEY_PAYMENT_DATE_RANGE,
-)
-
-if not (isinstance(date_range, tuple | list) and len(date_range) == 2):
-    st.sidebar.warning("Please select both a start and end date.")
-    st.stop()
-else:
-    start_date, end_date = date_range
-    if start_date > end_date:
-        st.sidebar.warning("Please ensure the start date is before the end date.")
-        st.stop()
-
-
-if not selected_sources:
-    st.warning("Please select at least one source to display any data.")
-    st.stop()
 
 # build the WHERE clause and parameters
 clauses, params = [], []
