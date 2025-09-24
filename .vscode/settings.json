@@ -1,0 +1,16 @@
+{
+  // Use the project venv
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  // If you’re on Windows, VS Code auto-picks .venv; otherwise set to:
+  // "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+
+  // Make Pylance/Pyright see your `src/` package layout
+  "python.analysis.extraPaths": ["${workspaceFolder}/src"],
+
+  // Run pylint from the selected environment
+  "pylint.importStrategy": "fromEnvironment",
+  "python.linting.enabled": true,
+
+  // (optional) quieter type checker
+  "python.analysis.typeCheckingMode": "basic"
+}

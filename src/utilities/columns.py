@@ -1,4 +1,5 @@
 """Constants for column names used in the procurement dashboard application."""
+from typing import Any, cast
 
 
 def quote_ident(name: str) -> str:
@@ -83,8 +84,8 @@ COLUMNS_TO_DISPLAY = [
 COLUMNS_DATE = [COLS["PAYMENT_DATE"], COLS["REMOVAL_DATE"]]
 COLUMNS_TO_DISPLAY_SQL = ", ".join(quote_ident(c) for c in COLUMNS_TO_DISPLAY)
 
-COLUMNS_TO_DISPLAY_STYLES = {
+COLUMNS_TO_DISPLAY_STYLES = cast(dict[Any, Any], {
     COLS["AMOUNT"]: "{:,.0f}",
     COLS["TOTAL_VALUE_PAYMENTS"]: "{:,.0f}",
     COLS["TOTAL_PAYMENTS"]: "{:,.0f}",
-}
+})

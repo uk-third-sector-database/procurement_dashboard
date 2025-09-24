@@ -11,6 +11,7 @@ import re
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from typing import cast
 
 import pandas as pd
 
@@ -111,28 +112,29 @@ def prepare_parquet(in_fpath: Path, out_fpath: Path):
     # ----------------------------
     for column_name in dset.columns:
         print(f"Processing {column_name} ({dset[column_name].dtype})")
+        s = cast(pd.Series, dset[column_name])
         match column_name:
             case "Unnamed: 0":
                 dset = dset.drop(columns=[column_name])
                 print("- column dropped")
             case "data_source":
-                dset[column_name] = process_data_source(dset[column_name])
+                dset[column_name] = process_data_source(s)
             case "dept":
-                dset[column_name] = process_dept(dset[column_name])
+                dset[column_name] = process_dept(s)
             case "amount":
-                dset[column_name] = process_amount(dset[column_name])
+                dset[column_name] = process_amount(s)
             case "supplier":
-                dset[column_name] = process_supplier(dset[column_name])
+                dset[column_name] = process_supplier(s)
             case "normalized_supplier":
-                dset[column_name] = process_normalized_supplier(dset[column_name])
+                dset[column_name] = process_normalized_supplier(s)
             case "date_payment":
-                dset[column_name] = process_date_payment(dset[column_name])
+                dset[column_name] = process_date_payment(s)
             case "contractsfinder_awardedtovcse":
-                dset[column_name] = process_contractsfinder_awardedtovcse(dset[column_name])
+                dset[column_name] = process_contractsfinder_awardedtovcse(s)
             case "contractsfinder_region":
-                dset[column_name] = process_contractsfinder_region(dset[column_name])
+                dset[column_name] = process_contractsfinder_region(s)
             case "daterange_org_seen":
-                dset[column_name] = process_daterange_org_seen(dset[column_name])
+                dset[column_name] = process_daterange_org_seen(s)
                 dset = split_daterange_org_seen(dset)
             case "total_value_payments_to_org":
                 # dset[column_name] = process_total_value_payments_to_org(dset[column_name])
@@ -144,27 +146,27 @@ def prepare_parquet(in_fpath: Path, out_fpath: Path):
                 dset = dset.drop(columns=[column_name])
                 print("- column dropped")
             case "orgflag":
-                dset[column_name] = process_orgflag(dset[column_name])
+                dset[column_name] = process_orgflag(s)
             case "verifmatch":
-                dset[column_name] = process_verifmatch(dset[column_name])
+                dset[column_name] = process_verifmatch(s)
             case "verifcode":
-                dset[column_name] = process_verifcode(dset[column_name])
+                dset[column_name] = process_verifcode(s)
             case "verifnote":
-                dset[column_name] = process_verifcode(dset[column_name])
+                dset[column_name] = process_verifcode(s)
             case "manual_match_to_spine":
-                dset[column_name] = process_manual_match_to_spine(dset[column_name])
+                dset[column_name] = process_manual_match_to_spine(s)
             case "other_exact_match":
-                dset[column_name] = process_other_exact_math(dset[column_name])
+                dset[column_name] = process_other_exact_math(s)
             case "isspine_manual":
-                dset[column_name] = process_is_spine_manual(dset[column_name])
+                dset[column_name] = process_is_spine_manual(s)
             case "isspine":
-                dset[column_name] = process_is_spine(dset[column_name])
+                dset[column_name] = process_is_spine(s)
             case "longmatch":
-                dset[column_name] = process_longmatch(dset[column_name])
+                dset[column_name] = process_longmatch(s)
             case "uid":
-                dset[column_name] = process_uid(dset[column_name])
+                dset[column_name] = process_uid(s)
                 column_to_add = "registries"
-                dset[column_to_add] = parse_registries(dset[column_name])
+                dset[column_to_add] = parse_registries(s)
                 all_regs = sorted({r for lst in dset[column_to_add].dropna() for r in lst})
                 print(f"- registries found: {all_regs}")
                 for reg in all_regs:
@@ -173,40 +175,40 @@ def prepare_parquet(in_fpath: Path, out_fpath: Path):
                     )
                     print(f" - {reg}: {dset[reg].sum()} matches")
             case "organisationname":
-                dset[column_name] = process_organisationname(dset[column_name])
+                dset[column_name] = process_organisationname(s)
             case "fulladdress":
-                dset[column_name] = process_fulladdress(dset[column_name])
+                dset[column_name] = process_fulladdress(s)
             case "city":
-                dset[column_name] = process_city(dset[column_name])
+                dset[column_name] = process_city(s)
             case "postcode":
-                dset[column_name] = process_postcode(dset[column_name])
+                dset[column_name] = process_postcode(s)
             case "registerdate":
-                dset[column_name] = process_registerdate(dset[column_name])
+                dset[column_name] = process_registerdate(s)
             case "removeddate":
-                dset[column_name] = process_removeddate(dset[column_name])
+                dset[column_name] = process_removeddate(s)
                 dset["removed"] = dset[column_name].notna()
             case "latitude":
-                dset[column_name] = process_latitude(dset[column_name])
+                dset[column_name] = process_latitude(s)
             case "longitude":
-                dset[column_name] = process_longitude(dset[column_name])
+                dset[column_name] = process_longitude(s)
             case "geometry":
-                dset[column_name] = process_geometry(dset[column_name])
+                dset[column_name] = process_geometry(s)
             case "nuts_id_0":
-                dset[column_name] = process_nuts_id(dset[column_name])
+                dset[column_name] = process_nuts_id(s)
             case "nuts_name_0":
-                dset[column_name] = process_nuts_name(dset[column_name])
+                dset[column_name] = process_nuts_name(s)
             case "nuts_id_1":
-                dset[column_name] = process_nuts_id(dset[column_name])
+                dset[column_name] = process_nuts_id(s)
             case "nuts_name_1":
-                dset[column_name] = process_nuts_name(dset[column_name])
+                dset[column_name] = process_nuts_name(s)
             case "nuts_id_2":
-                dset[column_name] = process_nuts_id(dset[column_name])
+                dset[column_name] = process_nuts_id(s)
             case "nuts_name_2":
-                dset[column_name] = process_nuts_name(dset[column_name])
+                dset[column_name] = process_nuts_name(s)
             case "nuts_id_3":
-                dset[column_name] = process_nuts_id(dset[column_name])
+                dset[column_name] = process_nuts_id(s)
             case "nuts_name_3":
-                dset[column_name] = process_nuts_name(dset[column_name])
+                dset[column_name] = process_nuts_name(s)
             case _:
                 print("- processing not implemented - skipping")
 
@@ -866,7 +868,7 @@ def parse_registries(uid: pd.Series) -> pd.Series:
     """
     s = uid.astype("string")
 
-    def one_cell(val: str | None):
+    def one_cell(val: str | None) -> list[str] | None:
         if val is None or pd.isna(val):
             return None
         regs = set()
@@ -876,7 +878,7 @@ def parse_registries(uid: pd.Series) -> pd.Series:
                 regs.add(m.group(1))
         return sorted(regs) if regs else None
 
-    return s.apply(one_cell)
+    return cast(pd.Series, s.apply(one_cell))
 
 
 if __name__ == "__main__":
@@ -911,6 +913,6 @@ if __name__ == "__main__":
 
     try:
         prepare_parquet(input_fpath, output_fpath)
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-except
         print(f"Error while processing: {e}")
         sys.exit(1)

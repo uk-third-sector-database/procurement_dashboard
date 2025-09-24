@@ -6,10 +6,9 @@ import duckdb
 import geopandas as gpd
 import pandas as pd
 import plotly.express as px
-import sidebar as sd
 import streamlit as st
-from shapely.geometry.polygon import orient
 
+import gui.sidebar as sd
 import gui.utils as utils
 import utilities.shared as shared
 from utilities.columns import (
@@ -79,7 +78,7 @@ sources = (
 
 
 KEY_PAYMENT_DATE_RANGE = f"{cols.PAYMENT_DATE}_range"
-dmin, dmax = con.execute(
+row = con.execute(
     f"""
     SELECT 
     MIN(CAST({cols_sql.PAYMENT_DATE} AS DATE)),
@@ -87,6 +86,8 @@ dmin, dmax = con.execute(
     FROM data
     """
 ).fetchone()
+assert row is not None, "Payment date min/max cannot be retrieved"
+dmin, dmax = row
 if KEY_PAYMENT_DATE_RANGE not in st.session_state:
     # set the initial value to the full range
     st.session_state[KEY_PAYMENT_DATE_RANGE] = (dmin, dmax)
@@ -246,14 +247,14 @@ if is_spine is True:
     )
 
 else:
-    selected_nuts_1_names = None
-    selected_nuts_1_ids = None
-    selected_nuts_2_names = None
-    selected_nuts_2_ids = None
-    selected_nuts_3_names = None
-    selected_nuts_3_ids = None
-    is_manual_match = None
-    is_other_match = None
+    selected_nuts_1_names: list | None = None
+    selected_nuts_1_ids: list | None = None
+    selected_nuts_2_names: list | None = None
+    selected_nuts_2_ids: list | None = None
+    selected_nuts_3_names: list | None = None
+    selected_nuts_3_ids: list | None = None
+    is_manual_match: bool | None = None
+    is_other_match: bool | None = None
     try:
         del st.session_state[KEY_NUTS_NAME_SELECTION_1]
         del st.session_state[KEY_NUTS_NAME_SELECTION_ALL_1]
@@ -287,7 +288,7 @@ date_range = date_cols[0].date_input(
     key=KEY_PAYMENT_DATE_RANGE,
 )
 
-if not isinstance(date_range, (tuple, list)) or len(date_range) != 2:
+if not (isinstance(date_range, tuple | list) and len(date_range) == 2):
     st.sidebar.warning("Please select both a start and end date.")
     st.stop()
 else:
@@ -341,35 +342,60 @@ params.extend(st.session_state[KEY_PAYMENT_DATE_RANGE])
 
 WHERE_CLAUSE = " AND ".join(clauses) if clauses else "TRUE"
 
-# get stats for the filtered dataset
-n_transactions = con.execute(f"SELECT COUNT(*) FROM data WHERE {WHERE_CLAUSE}", params).fetchone()[
-    0
-]
+# transactions
+row = con.execute(
+    f"SELECT COUNT(*) FROM data WHERE {WHERE_CLAUSE}",
+    params,
+).fetchone()
+assert row is not None, "COUNT(*) query returned no row"
+n_transactions = row[0]
 
-n_suppliers = con.execute(
-    f"SELECT COUNT(DISTINCT {cols_sql.SUPPLIER}) FROM data WHERE {WHERE_CLAUSE}", params
-).fetchone()[0]
+# suppliers
+row = con.execute(
+    f"SELECT COUNT(DISTINCT {cols_sql.SUPPLIER}) FROM data WHERE {WHERE_CLAUSE}",
+    params,
+).fetchone()
+assert row is not None, "COUNT(DISTINCT Supplier) query returned no row"
+n_suppliers = row[0]
 
-total_amount = con.execute(
-    f"SELECT SUM({cols_sql.AMOUNT}) FROM data WHERE {WHERE_CLAUSE}", params
-).fetchone()[0]
+# total amount
+row = con.execute(
+    f"SELECT SUM({cols_sql.AMOUNT}) FROM data WHERE {WHERE_CLAUSE}",
+    params,
+).fetchone()
+assert row is not None, "SUM(Amount) query returned no row"
+total_amount = row[0]
 
 if is_spine is None and n_transactions > 0:
     WHERE_CLAUSE_SPINE = WHERE_CLAUSE + f" AND {cols_sql.SPINE} = TRUE"
-    n_suppliers_spine = con.execute(
+
+    # suppliers (spine)
+    row = con.execute(
         f"SELECT COUNT(DISTINCT {cols_sql.SUPPLIER}) FROM data WHERE {WHERE_CLAUSE_SPINE}",
         params,
-    ).fetchone()[0]
-    n_transactions_spine = con.execute(
-        f"SELECT COUNT(*) FROM data WHERE {WHERE_CLAUSE_SPINE}", params
-    ).fetchone()[0]
-    total_amount_spine = con.execute(
-        f"SELECT SUM({cols_sql.AMOUNT}) FROM data WHERE {WHERE_CLAUSE_SPINE}", params
-    ).fetchone()[0]
+    ).fetchone()
+    assert row is not None, "COUNT(DISTINCT Supplier) query (spine) returned no row"
+    n_suppliers_spine = row[0]
+
+    # transactions (spine)
+    row = con.execute(
+        f"SELECT COUNT(*) FROM data WHERE {WHERE_CLAUSE_SPINE}",
+        params,
+    ).fetchone()
+    assert row is not None, "COUNT(*) query (spine) returned no row"
+    n_transactions_spine = row[0]
+
+    # total amount (spine)
+    row = con.execute(
+        f"SELECT SUM({cols_sql.AMOUNT}) FROM data WHERE {WHERE_CLAUSE_SPINE}",
+        params,
+    ).fetchone()
+    assert row is not None, "SUM(Amount) query (spine) returned no row"
+    total_amount_spine = row[0]
 else:
-    n_suppliers_spine = None
-    n_transactions_spine = None
-    total_amount_spine = None
+    n_suppliers_spine: int | None = None
+    n_transactions_spine: int | None = None
+    total_amount_spine: float | None = None
 
 
 # get the raw dataset to display as top records by Amount
@@ -392,10 +418,10 @@ cols_metrics = st.columns(3)
 
 with cols_metrics[0].container(border=True):
     if is_spine is not True and n_suppliers_spine is not None:
-        st.metric("🏢 Suppliers - all", f"{n_suppliers:,}")
+        st.metric("🏬 Suppliers - all", f"{n_suppliers:,}")
         st.metric("Suppliers - spine (TSO)", f"{n_suppliers_spine:,}")
     else:
-        st.metric("🏢 Suppliers", f"{n_suppliers:,}")
+        st.metric("🏬 Suppliers", f"{n_suppliers:,}")
 with cols_metrics[1].container(border=True):
     if is_spine is not True and n_transactions_spine is not None:
         st.metric("🤝 Transactions - all", f"{n_transactions:,}")
@@ -549,7 +575,9 @@ with tabs_views[2]:
     st.plotly_chart(fig, use_container_width=True)
 
 with tabs_views[3]:
-    if is_spine is not True or selected_nuts_1_names is None or len(selected_nuts_1_names) == 0:
+    if not is_spine or not all(
+        [selected_nuts_1_names, selected_nuts_1_ids, selected_nuts_2_ids, selected_nuts_3_ids]
+    ):
         st.info(
             f"""
             Geographical distribution is only available when filtering for
@@ -558,21 +586,29 @@ with tabs_views[3]:
         )
     else:
         nuts = gpd.read_file(shared.SHAPE_FILE).to_crs(epsg=4326)
-        # nuts = nuts[(nuts.CNTR_CODE == "UK") & (nuts.NUTS_ID != "UKN")].copy()
         # nuts = nuts[nuts.CNTR_CODE == "UK"].copy()
 
+        # mask = (
+        #     (nuts["LEVL_CODE"].eq(1) & nuts["NUTS_ID"].isin(selected_nuts_1_ids))
+        #     | (nuts["LEVL_CODE"].eq(2) & nuts["NUTS_ID"].isin(selected_nuts_2_ids))
+        #     | (nuts["LEVL_CODE"].eq(3) & nuts["NUTS_ID"].isin(selected_nuts_3_ids))
+        # )
+        ids_1 = selected_nuts_1_ids or []
+        ids_2 = selected_nuts_2_ids or []
+        ids_3 = selected_nuts_3_ids or []
+
         mask = (
-            (nuts["LEVL_CODE"].eq(1) & nuts["NUTS_ID"].isin(selected_nuts_1_ids))
-            | (nuts["LEVL_CODE"].eq(2) & nuts["NUTS_ID"].isin(selected_nuts_2_ids))
-            | (nuts["LEVL_CODE"].eq(3) & nuts["NUTS_ID"].isin(selected_nuts_3_ids))
+            (nuts["LEVL_CODE"].eq(1) & nuts["NUTS_ID"].isin(ids_1))
+            | (nuts["LEVL_CODE"].eq(2) & nuts["NUTS_ID"].isin(ids_2))
+            | (nuts["LEVL_CODE"].eq(3) & nuts["NUTS_ID"].isin(ids_3))
         )
 
         nuts = nuts[mask].copy()
 
-        nuts_level = 3
-        nuts_display = nuts[nuts.LEVL_CODE == nuts_level]
+        NUTS_LEVEL = 3
+        nuts_display = nuts.loc[nuts.LEVL_CODE == NUTS_LEVEL]
 
-        COLUMN_NUTS_ID = f"NUTS ID {nuts_level}"
+        COLUMN_NUTS_ID = f"NUTS ID {NUTS_LEVEL}"
         dset_nuts = con.execute(
             f"""
                 WITH filtered AS (
@@ -662,7 +698,7 @@ with tabs_views[4]:
         st.stop()
     else:
         dset_reg = pd.DataFrame()
-        for registry in REGISTRIES.keys():
+        for registry in REGISTRIES:
             col_flag = quote_ident(registry)
             col_amount = cols_sql.AMOUNT
 
