@@ -32,20 +32,6 @@ widgets = SimpleNamespace(**WIDGETS)
 
 NULLS = "NULLS LAST"
 
-KEYS_NUTS_NAME = {
-    "SELECTION": {
-        1: "multiselect_nuts_name_1",
-        2: "multiselect_nuts_name_2",
-        3: "multiselect_nuts_name_3",
-    },
-    "ALL": {
-        1: "checkbox_all_nuts_name_1",
-        2: "checkbox_all_nuts_name_2",
-        3: "checkbox_all_nuts_name_3",
-    },
-}
-
-
 st.set_page_config(
     layout="wide",
     page_title=text.APP_TITLE,
@@ -55,7 +41,6 @@ st.set_page_config(
 
 # duckdb connection
 con = db.get_con()
-
 
 # sidebar top
 sd.top()
@@ -67,124 +52,48 @@ wd.payment_date_range_selector(con)
 wd.is_removed_selector()
 wd.is_spine_selector()
 
-
-dset_nuts: dict[int, pd.DataFrame | None] = {1: None, 2: None, 3: None}
-names_nuts: dict[int, list[str]] = {1: [], 2: [], 3: []}
-selected_nuts: dict[str, dict[int, list[str] | None]] = {
-    "name": {1: None, 2: None, 3: None},
-    "id": {1: None, 2: None, 3: None},
-}
+_state["DSET_NUTS"] = {1: None, 2: None, 3: None}
+_state["NAMES_NUTS"] = {1: [], 2: [], 3: []}
+_state["IDS_NUTS"] = {1: [], 2: [], 3: []}
 
 
-def assign_state_nuts_keys(level: int) -> None:
-    """Ensure the session state keys for NUTS level selectors exist."""
-    if KEYS_NUTS_NAME["SELECTION"][level] not in _state:
-        _state[KEYS_NUTS_NAME["SELECTION"][level]] = []
-    if KEYS_NUTS_NAME["ALL"][level] not in _state:
-        _state[KEYS_NUTS_NAME["ALL"][level]] = False
-
-
-assign_state_nuts_keys(1)
+wd.assign_state_nuts_keys(1)
 if _state[wd.WIDGET_KEYS["IS_SPINE"]] is True:
     NUTS_LEVEL = 1
-    dset_nuts[NUTS_LEVEL], names_nuts[NUTS_LEVEL] = db.fetch_nuts_level(
+    _state["DSET_NUTS"][NUTS_LEVEL], _state["NAMES_NUTS"][NUTS_LEVEL] = db.fetch_nuts_level(
         con, level=NUTS_LEVEL, where=None, params=[]
     )
+    wd.nuts_names_selector(NUTS_LEVEL)
 
-    cols_nuts_1 = st.sidebar.columns([0.75, 0.25], gap=None, vertical_alignment="center")
-    cols_nuts_1[0].text("NUTS Level 1")
-    with cols_nuts_1[1]:
-        select_all_nuts_names_1 = st.checkbox("All", key=KEYS_NUTS_NAME["ALL"][1])
-    if select_all_nuts_names_1 and _state[KEYS_NUTS_NAME["SELECTION"][1]] != names_nuts[NUTS_LEVEL]:
-        _state[KEYS_NUTS_NAME["SELECTION"][1]] = names_nuts[NUTS_LEVEL]
-        st.rerun()
-
-    st.sidebar.multiselect(
-        "NUTS Level 1",
-        label_visibility="collapsed",
-        options=names_nuts[NUTS_LEVEL],
-        key=KEYS_NUTS_NAME["SELECTION"][1],
-        disabled=select_all_nuts_names_1,
-    )
-
-    if _state[KEYS_NUTS_NAME["SELECTION"][1]]:
-        selected_nuts["id"][1] = (
-            dset_nuts[1]
-            .loc[
-                dset_nuts[1][cols.NUTS_NAME_1].isin(_state[KEYS_NUTS_NAME["SELECTION"][1]]),
-                cols.NUTS_ID_1,
-            ]
-            .tolist()
-        )
-
+    if _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]]:
         NUTS_LEVEL = 2
-        PLACEHOLDERS = ", ".join("?" for _ in _state[KEYS_NUTS_NAME["SELECTION"][1]])
+        PLACEHOLDERS = ", ".join("?" for _ in _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]])
         WHERE_CLAUSE = f"{quote_ident(COLS['NUTS_NAME_1'])} IN ({PLACEHOLDERS})"
-        nuts_level2, nuts_name_2s = db.fetch_nuts_level(
+        _state["DSET_NUTS"][NUTS_LEVEL], _state["NAMES_NUTS"][NUTS_LEVEL] = db.fetch_nuts_level(
             con=con,
             level=2,
             where=WHERE_CLAUSE,
-            params=_state[KEYS_NUTS_NAME["SELECTION"][1]],
+            params=_state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]],
             order_by="NUTS_NAME_2",
         )
+        wd.nuts_names_selector(NUTS_LEVEL)
 
-        assign_state_nuts_keys(NUTS_LEVEL)
-
-        cols_nuts_2 = st.sidebar.columns([0.75, 0.25], gap=None, vertical_alignment="center")
-        cols_nuts_2[0].text("NUTS Level 2")
-        with cols_nuts_2[1]:
-            select_all_nuts_names_2 = st.checkbox("All", key=KEYS_NUTS_NAME["ALL"][2])
-        if select_all_nuts_names_2 and _state[KEYS_NUTS_NAME["SELECTION"][2]] != nuts_name_2s:
-            _state[KEYS_NUTS_NAME["SELECTION"][2]] = nuts_name_2s
-            st.rerun()
-
-        selected_nuts_2_names = st.sidebar.multiselect(
-            "NUTS Level 2",
-            options=nuts_name_2s,
-            key=KEYS_NUTS_NAME["SELECTION"][2],
-            label_visibility="collapsed",
-            disabled=select_all_nuts_names_2,
-        )
-
-        if selected_nuts_2_names:
-            selected_nuts["id"][2] = nuts_level2.loc[
-                nuts_level2[cols.NUTS_NAME_2].isin(selected_nuts_2_names), cols.NUTS_ID_2
-            ].tolist()
-
+        if _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][2]]:
             NUTS_LEVEL = 3
-            PLACEHOLDERS = ", ".join("?" for _ in selected_nuts_2_names)
+            PLACEHOLDERS = ", ".join(
+                "?" for _ in _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][2]]
+            )
             WHERE_CLAUSE = f"{quote_ident(COLS['NUTS_NAME_2'])} IN ({PLACEHOLDERS})"
-            nuts_level3, nuts_name_3s = db.fetch_nuts_level(
+            _state["DSET_NUTS"][NUTS_LEVEL], _state["NAMES_NUTS"][NUTS_LEVEL] = db.fetch_nuts_level(
                 con=con,
                 level=3,
                 where=WHERE_CLAUSE,
-                params=selected_nuts_2_names,
+                params=_state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][2]],
                 order_by="NUTS_NAME_3",
             )
 
-            assign_state_nuts_keys(NUTS_LEVEL)
+            wd.nuts_names_selector(NUTS_LEVEL)
 
-            cols_nuts_3 = st.sidebar.columns([0.75, 0.25], gap=None, vertical_alignment="center")
-            cols_nuts_3[0].text("NUTS Level 3")
-            with cols_nuts_3[1]:
-                select_all_nuts_names_3 = st.checkbox("All", key=KEYS_NUTS_NAME["ALL"][3])
-            if select_all_nuts_names_3 and _state[KEYS_NUTS_NAME["SELECTION"][3]] != nuts_name_3s:
-                _state[KEYS_NUTS_NAME["SELECTION"][3]] = nuts_name_3s
-                st.rerun()
-
-            selected_nuts_3_names = st.sidebar.multiselect(
-                "NUTS Level 3",
-                options=nuts_name_3s,
-                key=KEYS_NUTS_NAME["SELECTION"][3],
-                label_visibility="collapsed",
-                disabled=select_all_nuts_names_3,
-            )
-
-            if len(selected_nuts_3_names):
-                selected_nuts["id"][3] = nuts_level3.loc[
-                    nuts_level3[cols.NUTS_NAME_3].isin(selected_nuts_3_names), cols.NUTS_ID_3
-                ].tolist()
-    
     # manual and other match selectors
     wd.is_manual_match_selector()
     wd.is_other_match_selector()
@@ -193,12 +102,12 @@ else:
     _state[wd.WIDGET_KEYS["IS_MANUAL_MATCH"]] = None
     _state[wd.WIDGET_KEYS["IS_OTHER_MATCH"]] = None
     try:
-        del _state[KEYS_NUTS_NAME["SELECTION"][1]]
-        del _state[KEYS_NUTS_NAME["ALL"][1]]
-        del _state[KEYS_NUTS_NAME["SELECTION"][2]]
-        del _state[KEYS_NUTS_NAME["ALL"][2]]
-        del _state[KEYS_NUTS_NAME["SELECTION"][3]]
-        del _state[KEYS_NUTS_NAME["ALL"][3]]
+        del _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]]
+        del _state[wd.WIDGET_KEYS["NUTS_NAMES"]["ALL"][1]]
+        del _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][2]]
+        del _state[wd.WIDGET_KEYS["NUTS_NAMES"]["ALL"][2]]
+        del _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]]
+        del _state[wd.WIDGET_KEYS["NUTS_NAMES"]["ALL"][3]]
     except KeyError:
         pass
 
@@ -214,12 +123,12 @@ params.extend(_state[wd.WIDGET_KEYS["SOURCE"]])
 try:
     if (
         _state[wd.WIDGET_KEYS["IS_SPINE"]] is True
-        and _state[KEYS_NUTS_NAME["SELECTION"][3]]
-        and len(_state[KEYS_NUTS_NAME["SELECTION"][3]]) > 0
+        and _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]]
+        and len(_state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]]) > 0
     ):
-        PLACEHOLDERS = ", ".join("?" for _ in _state[KEYS_NUTS_NAME["SELECTION"][3]])
+        PLACEHOLDERS = ", ".join("?" for _ in _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]])
         clauses.append(f"{cols_sql.NUTS_NAME_3} IN ({PLACEHOLDERS})")
-        params.extend(_state[KEYS_NUTS_NAME["SELECTION"][3]])
+        params.extend(_state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]])
 except KeyError:
     pass
 
@@ -356,7 +265,8 @@ with tabs_views[0]:
     if n_transactions > _state[wd.WIDGET_KEYS["RECORDS_NUMBER"]]:
         # more records available than displayed, inform the user about the display selection made
         st.write(f"""
-        The top **{_state[wd.WIDGET_KEYS["RECORDS_NUMBER"]]}** selected transactions by **{cols.AMOUNT}**
+        The top **{_state[wd.WIDGET_KEYS["RECORDS_NUMBER"]]}**
+        selected transactions by **{cols.AMOUNT}**
         """)
 
     # format the columns to display
@@ -484,10 +394,10 @@ with tabs_views[2]:
 with tabs_views[3]:
     if not _state[wd.WIDGET_KEYS["IS_SPINE"]] or not all(
         [
-            _state[KEYS_NUTS_NAME["SELECTION"][1]],
-            selected_nuts["id"][1],
-            selected_nuts["id"][2],
-            selected_nuts["id"][3],
+            _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]],
+            _state["IDS_NUTS"][1],
+            _state["IDS_NUTS"][2],
+            _state["IDS_NUTS"][3],
         ]
     ):
         st.info(
@@ -498,16 +408,10 @@ with tabs_views[3]:
         )
     else:
         nuts = gpd.read_file(shared.SHAPE_FILE).to_crs(epsg=4326)
-        # nuts = nuts[nuts.CNTR_CODE == "UK"].copy()
 
-        # mask = (
-        #     (nuts["LEVL_CODE"].eq(1) & nuts["NUTS_ID"].isin(selected_nuts["id"][1]))
-        #     | (nuts["LEVL_CODE"].eq(2) & nuts["NUTS_ID"].isin(selected_nuts["id"][2]))
-        #     | (nuts["LEVL_CODE"].eq(3) & nuts["NUTS_ID"].isin(selected_nuts["id"][3]))
-        # )
-        ids_1 = selected_nuts["id"][1] or []
-        ids_2 = selected_nuts["id"][2] or []
-        ids_3 = selected_nuts["id"][3] or []
+        ids_1 = _state["IDS_NUTS"][1] or []
+        ids_2 = _state["IDS_NUTS"][2] or []
+        ids_3 = _state["IDS_NUTS"][3] or []
 
         mask = (
             (nuts["LEVL_CODE"].eq(1) & nuts["NUTS_ID"].isin(ids_1))

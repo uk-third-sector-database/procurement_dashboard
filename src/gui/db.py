@@ -7,8 +7,8 @@ import duckdb
 import pandas as pd
 import streamlit as st
 
-import utilities.shared as shared
 import gui.utils as utils
+import utilities.shared as shared
 from utilities.columns import COLS
 
 VIEW_NAME = "data"

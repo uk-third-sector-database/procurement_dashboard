@@ -39,4 +39,9 @@ WIDGETS = {
     "IS_OTHER_MATCH": {
         "label": "Other match to spine?"
     },
+    "NUTS_NAMES": {
+        "ALL": {
+            "label": "All"
+        }
+    }
 }

@@ -19,6 +19,18 @@ WIDGET_KEYS = {
     "IS_SPINE": "selectbox_is_spine",
     "IS_MANUAL_MATCH": "selectbox_is_manual_match",
     "IS_OTHER_MATCH": "selectbox_is_other_match",
+    "NUTS_NAMES": {
+        "SELECTION": {
+            1: "multiselect_nuts_name_1",
+            2: "multiselect_nuts_name_2",
+            3: "multiselect_nuts_name_3",
+        },
+        "ALL": {
+            1: "checkbox_all_nuts_name_1",
+            2: "checkbox_all_nuts_name_2",
+            3: "checkbox_all_nuts_name_3",
+        },
+    },
 }
 cols = SimpleNamespace(**COLS)
 text = SimpleNamespace(**TEXT)
@@ -97,6 +109,7 @@ def is_spine_selector() -> None:
         key=WIDGET_KEYS["IS_SPINE"],
     )
 
+
 def is_manual_match_selector() -> None:
     """Render the is manual match selector widget in the sidebar."""
     st.sidebar.selectbox(
@@ -106,6 +119,7 @@ def is_manual_match_selector() -> None:
         key=WIDGET_KEYS["IS_MANUAL_MATCH"],
     )
 
+
 def is_other_match_selector() -> None:
     """Render the is other match selector widget in the sidebar."""
     st.sidebar.selectbox(
@@ -114,3 +128,52 @@ def is_other_match_selector() -> None:
         format_func=lambda x: text.OPTION_NEITHER if x is None else str(x),
         key=WIDGET_KEYS["IS_OTHER_MATCH"],
     )
+
+
+def assign_state_nuts_keys(level: int) -> None:
+    """Ensure the session state keys for NUTS level selectors exist."""
+    if WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][level] not in _state:
+        _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][level]] = []
+    if WIDGET_KEYS["NUTS_NAMES"]["ALL"][level] not in _state:
+        _state[WIDGET_KEYS["NUTS_NAMES"]["ALL"][level]] = False
+
+
+def nuts_names_selector(
+    level: int
+) -> None:
+    """Render the NUTS names selector widget in the sidebar.
+    Args:
+        con (duckdb.DuckDBPyConnection): A DuckDB connection with the data view created.
+        level (int): The NUTS level (1, 2, or 3).
+    """
+    dcols = st.sidebar.columns([0.75, 0.25], gap=None, vertical_alignment="center")
+    dcols[0].text(f"NUTS Level {level}")
+    with dcols[1]:
+        st.checkbox(**widgets.NUTS_NAMES["ALL"], key=WIDGET_KEYS["NUTS_NAMES"]["ALL"][level])
+
+    if (
+        _state[WIDGET_KEYS["NUTS_NAMES"]["ALL"][level]] is True
+        and _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][level]] != _state["NAMES_NUTS"][level]
+    ):
+        _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][level]] = _state["NAMES_NUTS"][level]
+        st.rerun()
+
+    st.sidebar.multiselect(
+        f"NUTS Level {level}",
+        label_visibility="collapsed",
+        options=_state["NAMES_NUTS"][level],
+        key=WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][level],
+        disabled=_state[WIDGET_KEYS["NUTS_NAMES"]["ALL"][level]],
+    )
+
+    if _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][level]]:
+        _state["IDS_NUTS"][level] = (
+            _state["DSET_NUTS"][level]
+            .loc[
+                _state["DSET_NUTS"][level][COLS[f"NUTS_NAME_{level}"]].isin(
+                    _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][level]]
+                ),
+                COLS[f"NUTS_ID_{level}"],
+            ]
+            .tolist()
+        )
