@@ -228,9 +228,9 @@ def prepare_parquet(in_fpath: Path, out_fpath: Path):
         f"{dset_outliers.shape[0]}"
     )
 
-    fpath = Path(out_fpath).with_name(Path(out_fpath).stem + "_outliers.csv")
-    dset_outliers.to_csv(fpath, index=False)
-    print(f"- outliers written to: {fpath}")
+    # fpath = Path(out_fpath).with_name(Path(out_fpath).stem + "_outliers.csv")
+    # dset_outliers.to_csv(fpath, index=False)
+    # print(f"- outliers written to: {fpath}")
 
     # filter data
     dset = dset.loc[dset[column_year].between(MIN_YEAR, MAX_YEAR)]

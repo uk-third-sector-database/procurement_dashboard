@@ -2,4 +2,5 @@
 .venv/
 .pdm-python
 __pycache__/
-data/
+data/raw/
+data/processed/
