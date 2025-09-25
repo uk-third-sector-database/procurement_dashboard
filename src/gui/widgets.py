@@ -7,7 +7,7 @@ import streamlit as st
 
 import gui.db as db
 from gui.content import TEXT, WIDGETS
-from utilities.columns import COLS, quote_ident
+from utilities.columns import COLS, COLS_SQL, quote_ident
 
 _state = st.session_state
 
@@ -33,6 +33,7 @@ WIDGET_KEYS = {
     },
 }
 cols = SimpleNamespace(**COLS)
+cols_sql = SimpleNamespace(**COLS_SQL)
 text = SimpleNamespace(**TEXT)
 widgets = SimpleNamespace(**WIDGETS)
 
@@ -226,11 +227,62 @@ def reset_is_spine_state_vars() -> None:
     _state[WIDGET_KEYS["IS_MANUAL_MATCH"]] = None
     _state[WIDGET_KEYS["IS_OTHER_MATCH"]] = None
     try:
-        del _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]]
-        del _state[WIDGET_KEYS["NUTS_NAMES"]["ALL"][1]]
-        del _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][2]]
-        del _state[WIDGET_KEYS["NUTS_NAMES"]["ALL"][2]]
-        del _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]]
-        del _state[WIDGET_KEYS["NUTS_NAMES"]["ALL"][3]]
+        for level in (1, 2, 3):
+            _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][level]] = []
+            _state[WIDGET_KEYS["NUTS_NAMES"]["ALL"][level]] = False
     except KeyError:
         pass
+
+
+def build_where_clause_and_params() -> tuple[str, list]:
+    """Build the SQL WHERE clause and parameters for the sql query 
+        based on the current state of the widgets.
+    Returns:
+        tuple[str, list]: A tuple containing the WHERE clause string and a list of parameters.
+    """
+    clauses, params = [], []
+
+    # source
+    placeholders = ", ".join("?" for _ in _state[WIDGET_KEYS["SOURCE"]])
+    clauses.append(f"{cols_sql.SOURCE} IN ({placeholders})")
+    params.extend(_state[WIDGET_KEYS["SOURCE"]])
+
+    try:
+        if (
+            _state[WIDGET_KEYS["IS_SPINE"]] is True
+            and _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]]
+            and len(_state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]]) > 0
+        ):
+            placeholders = ", ".join("?" for _ in _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]])
+            clauses.append(f"{cols_sql.NUTS_NAME_3} IN ({placeholders})")
+            params.extend(_state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]])
+    except KeyError:
+        pass
+
+    # is spine
+    if _state[WIDGET_KEYS["IS_SPINE"]] is not None:
+        clauses.append(f"{cols_sql.SPINE} = ?")
+        params.append(_state[WIDGET_KEYS["IS_SPINE"]])
+
+    # is manual match
+    if _state[WIDGET_KEYS["IS_MANUAL_MATCH"]] is not None:
+        clauses.append(f"{cols_sql.MANUAL_MATCH} = ?")
+        params.append(_state[WIDGET_KEYS["IS_MANUAL_MATCH"]])
+
+    # is other match
+    if _state[WIDGET_KEYS["IS_OTHER_MATCH"]] is not None:
+        clauses.append(f"{cols_sql.OTHER_MATCH} = ?")
+        params.append(_state[WIDGET_KEYS["IS_OTHER_MATCH"]])
+
+    # is removed
+    if _state[WIDGET_KEYS["IS_REMOVED"]] is not None:
+        clauses.append(f"{cols_sql.REMOVED} = ?")
+        params.append(_state[WIDGET_KEYS["IS_REMOVED"]])
+
+    # date range
+    clauses.append(f"CAST({cols_sql.PAYMENT_DATE} AS DATE) BETWEEN ? AND ?")
+    params.extend(_state[WIDGET_KEYS["PAYMENT_DATE_RANGE"]])
+
+    where_clause = " AND ".join(clauses) if clauses else "TRUE"
+
+    return where_clause, params

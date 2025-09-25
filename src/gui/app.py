@@ -75,56 +75,11 @@ if _state[wd.WIDGET_KEYS["IS_SPINE"]] is True:
 else:
     wd.reset_is_spine_state_vars()
 
-
-# build the WHERE clause and parameters
-clauses, params = [], []
-
-# source
-PLACEHOLDERS = ", ".join("?" for _ in _state[wd.WIDGET_KEYS["SOURCE"]])
-clauses.append(f"{cols_sql.SOURCE} IN ({PLACEHOLDERS})")
-params.extend(_state[wd.WIDGET_KEYS["SOURCE"]])
-
-try:
-    if (
-        _state[wd.WIDGET_KEYS["IS_SPINE"]] is True
-        and _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]]
-        and len(_state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]]) > 0
-    ):
-        PLACEHOLDERS = ", ".join("?" for _ in _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]])
-        clauses.append(f"{cols_sql.NUTS_NAME_3} IN ({PLACEHOLDERS})")
-        params.extend(_state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]])
-except KeyError:
-    pass
-
-# is spine
-if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not None:
-    clauses.append(f"{cols_sql.SPINE} = ?")
-    params.append(_state[wd.WIDGET_KEYS["IS_SPINE"]])
-
-# is manual match
-if _state[wd.WIDGET_KEYS["IS_MANUAL_MATCH"]] is not None:
-    clauses.append(f"{cols_sql.MANUAL_MATCH} = ?")
-    params.append(_state[wd.WIDGET_KEYS["IS_MANUAL_MATCH"]])
-
-# is other match
-if _state[wd.WIDGET_KEYS["IS_OTHER_MATCH"]] is not None:
-    clauses.append(f"{cols_sql.OTHER_MATCH} = ?")
-    params.append(_state[wd.WIDGET_KEYS["IS_OTHER_MATCH"]])
-
-# is removed
-if _state[wd.WIDGET_KEYS["IS_REMOVED"]] is not None:
-    clauses.append(f"{cols_sql.REMOVED} = ?")
-    params.append(_state[wd.WIDGET_KEYS["IS_REMOVED"]])
-
-# date range
-clauses.append(f"CAST({cols_sql.PAYMENT_DATE} AS DATE) BETWEEN ? AND ?")
-params.extend(_state[wd.WIDGET_KEYS["PAYMENT_DATE_RANGE"]])
-
-WHERE_CLAUSE = " AND ".join(clauses) if clauses else "TRUE"
+where_clause, params = wd.build_where_clause_and_params()
 
 # transactions
 row = con.execute(
-    f"SELECT COUNT(*) FROM data WHERE {WHERE_CLAUSE}",
+    f"SELECT COUNT(*) FROM data WHERE {where_clause}",
     params,
 ).fetchone()
 assert row is not None, "COUNT(*) query returned no row"
@@ -132,7 +87,7 @@ n_transactions = row[0]
 
 # suppliers
 row = con.execute(
-    f"SELECT COUNT(DISTINCT {cols_sql.SUPPLIER}) FROM data WHERE {WHERE_CLAUSE}",
+    f"SELECT COUNT(DISTINCT {cols_sql.SUPPLIER}) FROM data WHERE {where_clause}",
     params,
 ).fetchone()
 assert row is not None, "COUNT(DISTINCT Supplier) query returned no row"
@@ -140,14 +95,14 @@ n_suppliers = row[0]
 
 # total amount
 row = con.execute(
-    f"SELECT SUM({cols_sql.AMOUNT}) FROM data WHERE {WHERE_CLAUSE}",
+    f"SELECT SUM({cols_sql.AMOUNT}) FROM data WHERE {where_clause}",
     params,
 ).fetchone()
 assert row is not None, "SUM(Amount) query returned no row"
 total_amount = row[0]
 
 if _state[wd.WIDGET_KEYS["IS_SPINE"]] is None and n_transactions > 0:
-    WHERE_CLAUSE_SPINE = WHERE_CLAUSE + f" AND {cols_sql.SPINE} = TRUE"
+    WHERE_CLAUSE_SPINE = where_clause + f" AND {cols_sql.SPINE} = TRUE"
 
     # suppliers (spine)
     row = con.execute(
@@ -183,7 +138,7 @@ dset_raw = con.execute(
     f"""
     SELECT {COLUMNS_TO_DISPLAY_SQL}
     FROM data
-    WHERE {WHERE_CLAUSE}
+    WHERE {where_clause}
     ORDER BY {cols_sql.AMOUNT} DESC {NULLS}
     LIMIT ?
     """,
@@ -251,7 +206,7 @@ with tabs_views[1]:
                     SELECT {cols_sql.SUPPLIER},
                             {cols_sql.AMOUNT}
                 FROM data
-                WHERE {WHERE_CLAUSE}
+                WHERE {where_clause}
                 ),
                 agg AS (
                     SELECT
@@ -286,7 +241,7 @@ with tabs_views[1]:
                     SELECT {cols_sql.SUPPLIER},
                            {cols_sql.AMOUNT}
                 FROM data
-                WHERE {WHERE_CLAUSE}
+                WHERE {where_clause}
                 ),
                 agg AS (
                     SELECT
@@ -325,7 +280,7 @@ with tabs_views[2]:
             COUNT(*) AS {quote_ident(COLUMN_TRANSACTIONS)},
             SUM({cols_sql.AMOUNT}) AS {quote_ident(COLUMN_VALUE)}
         FROM data
-        WHERE {WHERE_CLAUSE}
+        WHERE {where_clause}
         GROUP BY {quote_ident(COLUMN_DATE)}
         ORDER BY {quote_ident(COLUMN_DATE)}
         """,
@@ -395,7 +350,7 @@ with tabs_views[3]:
                     SELECT {quote_ident(COLUMN_NUTS_ID)},
                             {cols_sql.AMOUNT}
                 FROM data
-                WHERE {WHERE_CLAUSE}
+                WHERE {where_clause}
                 ),
                 agg AS (
                     SELECT
@@ -489,7 +444,7 @@ with tabs_views[4]:
                         SUM(CASE WHEN {col_flag} THEN {col_amount} ELSE 0 END)
                             AS {cols_sql.TOTAL_VALUE_PAYMENTS}
                     FROM data
-                    WHERE {WHERE_CLAUSE}
+                    WHERE {where_clause}
                 """,
                 params,
             ).fetchdf()
