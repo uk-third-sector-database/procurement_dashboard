@@ -9,18 +9,34 @@ TEXT = {
 }
 
 WIDGETS = {
-    "RECORDS_TO_DISPLAY": {
+    "RECORDS_NUMBER": {
         "label": "Transactions to display (up to)",
         "min_value": 10,
         "max_value": 500,
         "value": 250,
         "step": 10,
     },
+    "SOURCES": {
+        "label": "Payment sources",
+    },
     "DATE_RANGE": {
+        "label": "Payment date",
         "format": "DD/MM/YYYY",
     },
     "DATE_RANGE_RESET": {
         "label": "↺",
         "help": "Reset date range"
-    }
+    },
+    "IS_REMOVED": {
+        "label": "Is removed?"
+    },
+    "IS_SPINE": {
+        "label": "Is spine?"
+    },
+    "IS_MANUAL_MATCH": {
+        "label": "Manual match to spine?"
+    },
+    "IS_OTHER_MATCH": {
+        "label": "Other match to spine?"
+    },
 }

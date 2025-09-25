@@ -3,14 +3,13 @@
 from types import SimpleNamespace
 
 import geopandas as gpd
-from numpy import e
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 
 import gui.db as db
 import gui.sidebar as sd
-import gui.utils as utils
+import gui.widgets as wd
 import utilities.shared as shared
 from gui.content import TEXT, WIDGETS
 from utilities.columns import (
@@ -22,6 +21,8 @@ from utilities.columns import (
     REGISTRIES,
     quote_ident,
 )
+
+_state = st.session_state
 
 cols = SimpleNamespace(**COLS)
 cols_sql = SimpleNamespace(**COLS_SQL)
@@ -52,65 +53,20 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# display the sidebar top
-sd.top()
-
-# get the cached DuckDB connection with the data loaded as a view
+# duckdb connection
 con = db.get_con()
 
-# sidebar widget to select the number of records to display
-n_displayed_records = st.sidebar.number_input(**widgets.RECORDS_TO_DISPLAY)
 
-# sidebar widget to select the sources to display
-sources = db.fetch_distinct_values(con, cols.SOURCE)
-selected_sources = st.sidebar.multiselect(cols.SOURCE, options=sources, default=sources)
-if not selected_sources:
-    st.sidebar.warning(text.ERROR_NO_SOURCE_SELECTED)
-    st.stop()
+# sidebar top
+sd.top()
 
-# sidebar widget to select the payment date range with reset button
-dmin, dmax = db.fetch_date_range(con, cols_sql.PAYMENT_DATE)
-KEY_PAYMENT_DATE_RANGE = "date_range"
-if KEY_PAYMENT_DATE_RANGE not in st.session_state:
-    st.session_state[KEY_PAYMENT_DATE_RANGE] = (dmin, dmax)
-date_cols = st.sidebar.columns([7, 1], vertical_alignment="bottom")
-with date_cols[1]:
-    if st.button(**widgets.DATE_RANGE_RESET):
-        st.session_state[KEY_PAYMENT_DATE_RANGE] = (dmin, dmax)
-with date_cols[0]:
-    date_cols[0].date_input(
-        cols.PAYMENT_DATE,
-        min_value=dmin,
-        max_value=dmax,
-        key=KEY_PAYMENT_DATE_RANGE,
-        **widgets.DATE_RANGE,
-    )
+# widgets
+wd.records_number_selector()
+wd.source_selector(con)
+wd.payment_date_range_selector(con)
+wd.is_removed_selector()
+wd.is_spine_selector()
 
-if not (
-    isinstance(st.session_state[KEY_PAYMENT_DATE_RANGE], tuple | list)
-    and len(st.session_state[KEY_PAYMENT_DATE_RANGE]) == 2
-):
-    st.sidebar.warning(text.ERROR_INCOMPLETE_DATE_RANGE)
-    st.stop()
-else:
-    start_date, end_date = st.session_state[KEY_PAYMENT_DATE_RANGE]
-    if start_date > end_date:
-        st.sidebar.warning(text.ERROR_INVALID_DATE_RANGE)
-        st.stop()
-
-# sidebar widget to filter for removed records
-is_removed = st.sidebar.selectbox(
-    cols.REMOVED,
-    options=[None, True, False],
-    format_func=lambda x: text.OPTION_NEITHER if x is None else str(x),
-)
-
-# sidebar widget to filter for spine records
-is_spine = st.sidebar.selectbox(
-    cols.SPINE,
-    options=[None, True, False],
-    format_func=lambda x: text.OPTION_NEITHER if x is None else str(x),
-)
 
 dset_nuts: dict[int, pd.DataFrame | None] = {1: None, 2: None, 3: None}
 names_nuts: dict[int, list[str]] = {1: [], 2: [], 3: []}
@@ -122,13 +78,14 @@ selected_nuts: dict[str, dict[int, list[str] | None]] = {
 
 def assign_state_nuts_keys(level: int) -> None:
     """Ensure the session state keys for NUTS level selectors exist."""
-    if KEYS_NUTS_NAME["SELECTION"][level] not in st.session_state:
-        st.session_state[KEYS_NUTS_NAME["SELECTION"][level]] = []
-    if KEYS_NUTS_NAME["ALL"][level] not in st.session_state:
-        st.session_state[KEYS_NUTS_NAME["ALL"][level]] = False
+    if KEYS_NUTS_NAME["SELECTION"][level] not in _state:
+        _state[KEYS_NUTS_NAME["SELECTION"][level]] = []
+    if KEYS_NUTS_NAME["ALL"][level] not in _state:
+        _state[KEYS_NUTS_NAME["ALL"][level]] = False
+
 
 assign_state_nuts_keys(1)
-if is_spine is True:
+if _state[wd.WIDGET_KEYS["IS_SPINE"]] is True:
     NUTS_LEVEL = 1
     dset_nuts[NUTS_LEVEL], names_nuts[NUTS_LEVEL] = db.fetch_nuts_level(
         con, level=NUTS_LEVEL, where=None, params=[]
@@ -138,11 +95,8 @@ if is_spine is True:
     cols_nuts_1[0].text("NUTS Level 1")
     with cols_nuts_1[1]:
         select_all_nuts_names_1 = st.checkbox("All", key=KEYS_NUTS_NAME["ALL"][1])
-    if (
-        select_all_nuts_names_1
-        and st.session_state[KEYS_NUTS_NAME["SELECTION"][1]] != names_nuts[NUTS_LEVEL]
-    ):
-        st.session_state[KEYS_NUTS_NAME["SELECTION"][1]] = names_nuts[NUTS_LEVEL]
+    if select_all_nuts_names_1 and _state[KEYS_NUTS_NAME["SELECTION"][1]] != names_nuts[NUTS_LEVEL]:
+        _state[KEYS_NUTS_NAME["SELECTION"][1]] = names_nuts[NUTS_LEVEL]
         st.rerun()
 
     st.sidebar.multiselect(
@@ -153,26 +107,24 @@ if is_spine is True:
         disabled=select_all_nuts_names_1,
     )
 
-    if st.session_state[KEYS_NUTS_NAME["SELECTION"][1]]:
+    if _state[KEYS_NUTS_NAME["SELECTION"][1]]:
         selected_nuts["id"][1] = (
             dset_nuts[1]
             .loc[
-                dset_nuts[1][cols.NUTS_NAME_1].isin(
-                    st.session_state[KEYS_NUTS_NAME["SELECTION"][1]]
-                ),
+                dset_nuts[1][cols.NUTS_NAME_1].isin(_state[KEYS_NUTS_NAME["SELECTION"][1]]),
                 cols.NUTS_ID_1,
             ]
             .tolist()
         )
 
         NUTS_LEVEL = 2
-        PLACEHOLDERS = ", ".join("?" for _ in st.session_state[KEYS_NUTS_NAME["SELECTION"][1]])
+        PLACEHOLDERS = ", ".join("?" for _ in _state[KEYS_NUTS_NAME["SELECTION"][1]])
         WHERE_CLAUSE = f"{quote_ident(COLS['NUTS_NAME_1'])} IN ({PLACEHOLDERS})"
         nuts_level2, nuts_name_2s = db.fetch_nuts_level(
             con=con,
             level=2,
             where=WHERE_CLAUSE,
-            params=st.session_state[KEYS_NUTS_NAME["SELECTION"][1]],
+            params=_state[KEYS_NUTS_NAME["SELECTION"][1]],
             order_by="NUTS_NAME_2",
         )
 
@@ -182,11 +134,8 @@ if is_spine is True:
         cols_nuts_2[0].text("NUTS Level 2")
         with cols_nuts_2[1]:
             select_all_nuts_names_2 = st.checkbox("All", key=KEYS_NUTS_NAME["ALL"][2])
-        if (
-            select_all_nuts_names_2
-            and st.session_state[KEYS_NUTS_NAME["SELECTION"][2]] != nuts_name_2s
-        ):
-            st.session_state[KEYS_NUTS_NAME["SELECTION"][2]] = nuts_name_2s
+        if select_all_nuts_names_2 and _state[KEYS_NUTS_NAME["SELECTION"][2]] != nuts_name_2s:
+            _state[KEYS_NUTS_NAME["SELECTION"][2]] = nuts_name_2s
             st.rerun()
 
         selected_nuts_2_names = st.sidebar.multiselect(
@@ -219,11 +168,8 @@ if is_spine is True:
             cols_nuts_3[0].text("NUTS Level 3")
             with cols_nuts_3[1]:
                 select_all_nuts_names_3 = st.checkbox("All", key=KEYS_NUTS_NAME["ALL"][3])
-            if (
-                select_all_nuts_names_3
-                and st.session_state[KEYS_NUTS_NAME["SELECTION"][3]] != nuts_name_3s
-            ):
-                st.session_state[KEYS_NUTS_NAME["SELECTION"][3]] = nuts_name_3s
+            if select_all_nuts_names_3 and _state[KEYS_NUTS_NAME["SELECTION"][3]] != nuts_name_3s:
+                _state[KEYS_NUTS_NAME["SELECTION"][3]] = nuts_name_3s
                 st.rerun()
 
             selected_nuts_3_names = st.sidebar.multiselect(
@@ -238,29 +184,21 @@ if is_spine is True:
                 selected_nuts["id"][3] = nuts_level3.loc[
                     nuts_level3[cols.NUTS_NAME_3].isin(selected_nuts_3_names), cols.NUTS_ID_3
                 ].tolist()
-    is_manual_match = st.sidebar.selectbox(
-        cols.MANUAL_MATCH,
-        options=[None, True, False],
-        format_func=lambda x: text.OPTION_NEITHER if x is None else str(x),
-        help=f"Choose value for the '{cols.MANUAL_MATCH}' column.",
-    )
+    
+    # manual and other match selectors
+    wd.is_manual_match_selector()
+    wd.is_other_match_selector()
 
-    is_other_match = st.sidebar.selectbox(
-        cols.OTHER_MATCH,
-        options=[None, True, False],
-        format_func=lambda x: text.OPTION_NEITHER if x is None else str(x),
-        help=f"Choose value for the '{cols.OTHER_MATCH}' column.",
-    )
 else:
-    is_manual_match: bool | None = None
-    is_other_match: bool | None = None
+    _state[wd.WIDGET_KEYS["IS_MANUAL_MATCH"]] = None
+    _state[wd.WIDGET_KEYS["IS_OTHER_MATCH"]] = None
     try:
-        del st.session_state[KEYS_NUTS_NAME["SELECTION"][1]]
-        del st.session_state[KEYS_NUTS_NAME["ALL"][1]]
-        del st.session_state[KEYS_NUTS_NAME["SELECTION"][2]]
-        del st.session_state[KEYS_NUTS_NAME["ALL"][2]]
-        del st.session_state[KEYS_NUTS_NAME["SELECTION"][3]]
-        del st.session_state[KEYS_NUTS_NAME["ALL"][3]]
+        del _state[KEYS_NUTS_NAME["SELECTION"][1]]
+        del _state[KEYS_NUTS_NAME["ALL"][1]]
+        del _state[KEYS_NUTS_NAME["SELECTION"][2]]
+        del _state[KEYS_NUTS_NAME["ALL"][2]]
+        del _state[KEYS_NUTS_NAME["SELECTION"][3]]
+        del _state[KEYS_NUTS_NAME["ALL"][3]]
     except KeyError:
         pass
 
@@ -269,45 +207,45 @@ else:
 clauses, params = [], []
 
 # source
-PLACEHOLDERS = ", ".join("?" for _ in selected_sources)
+PLACEHOLDERS = ", ".join("?" for _ in _state[wd.WIDGET_KEYS["SOURCE"]])
 clauses.append(f"{cols_sql.SOURCE} IN ({PLACEHOLDERS})")
-params.extend(selected_sources)
+params.extend(_state[wd.WIDGET_KEYS["SOURCE"]])
 
 try:
     if (
-        is_spine and 
-        st.session_state[KEYS_NUTS_NAME["SELECTION"][3]]
-        and len(st.session_state[KEYS_NUTS_NAME["SELECTION"][3]]) > 0
+        _state[wd.WIDGET_KEYS["IS_SPINE"]] is True
+        and _state[KEYS_NUTS_NAME["SELECTION"][3]]
+        and len(_state[KEYS_NUTS_NAME["SELECTION"][3]]) > 0
     ):
-        PLACEHOLDERS = ", ".join("?" for _ in st.session_state[KEYS_NUTS_NAME["SELECTION"][3]])
+        PLACEHOLDERS = ", ".join("?" for _ in _state[KEYS_NUTS_NAME["SELECTION"][3]])
         clauses.append(f"{cols_sql.NUTS_NAME_3} IN ({PLACEHOLDERS})")
-        params.extend(st.session_state[KEYS_NUTS_NAME["SELECTION"][3]])
+        params.extend(_state[KEYS_NUTS_NAME["SELECTION"][3]])
 except KeyError:
     pass
 
 # is spine
-if is_spine is not None:
+if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not None:
     clauses.append(f"{cols_sql.SPINE} = ?")
-    params.append(is_spine)
+    params.append(_state[wd.WIDGET_KEYS["IS_SPINE"]])
 
 # is manual match
-if is_manual_match is not None:
+if _state[wd.WIDGET_KEYS["IS_MANUAL_MATCH"]] is not None:
     clauses.append(f"{cols_sql.MANUAL_MATCH} = ?")
-    params.append(is_manual_match)
+    params.append(_state[wd.WIDGET_KEYS["IS_MANUAL_MATCH"]])
 
 # is other match
-if is_other_match is not None:
+if _state[wd.WIDGET_KEYS["IS_OTHER_MATCH"]] is not None:
     clauses.append(f"{cols_sql.OTHER_MATCH} = ?")
-    params.append(is_other_match)
+    params.append(_state[wd.WIDGET_KEYS["IS_OTHER_MATCH"]])
 
-# removed
-if is_removed is not None:
+# is removed
+if _state[wd.WIDGET_KEYS["IS_REMOVED"]] is not None:
     clauses.append(f"{cols_sql.REMOVED} = ?")
-    params.append(is_removed)
+    params.append(_state[wd.WIDGET_KEYS["IS_REMOVED"]])
 
 # date range
 clauses.append(f"CAST({cols_sql.PAYMENT_DATE} AS DATE) BETWEEN ? AND ?")
-params.extend(st.session_state[KEY_PAYMENT_DATE_RANGE])
+params.extend(_state[wd.WIDGET_KEYS["PAYMENT_DATE_RANGE"]])
 
 WHERE_CLAUSE = " AND ".join(clauses) if clauses else "TRUE"
 
@@ -335,7 +273,7 @@ row = con.execute(
 assert row is not None, "SUM(Amount) query returned no row"
 total_amount = row[0]
 
-if is_spine is None and n_transactions > 0:
+if _state[wd.WIDGET_KEYS["IS_SPINE"]] is None and n_transactions > 0:
     WHERE_CLAUSE_SPINE = WHERE_CLAUSE + f" AND {cols_sql.SPINE} = TRUE"
 
     # suppliers (spine)
@@ -376,7 +314,7 @@ dset_raw = con.execute(
     ORDER BY {cols_sql.AMOUNT} DESC {NULLS}
     LIMIT ?
     """,
-    params + [n_displayed_records],
+    params + [_state[wd.WIDGET_KEYS["RECORDS_NUMBER"]]],
 ).fetchdf()
 
 if dset_raw.empty:
@@ -386,19 +324,19 @@ if dset_raw.empty:
 cols_metrics = st.columns(3)
 
 with cols_metrics[0].container(border=True):
-    if is_spine is not True and n_suppliers_spine is not None:
+    if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not True and n_suppliers_spine is not None:
         st.metric("🏬 Suppliers - all", f"{n_suppliers:,}")
         st.metric("Suppliers - spine (TSO)", f"{n_suppliers_spine:,}")
     else:
         st.metric("🏬 Suppliers", f"{n_suppliers:,}")
 with cols_metrics[1].container(border=True):
-    if is_spine is not True and n_transactions_spine is not None:
+    if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not True and n_transactions_spine is not None:
         st.metric("🤝 Transactions - all", f"{n_transactions:,}")
         st.metric("Transactions - spine (TSO)", f"{n_transactions_spine:,}")
     else:
         st.metric("🤝 Transactions", f"{n_transactions:,}")
 with cols_metrics[2].container(border=True):
-    if is_spine is not True and total_amount_spine is not None:
+    if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not True and total_amount_spine is not None:
         st.metric("💷 Value - all", f"{total_amount:,.0f}")
         st.metric("Value - spine (TSO)", f"{total_amount_spine:,.0f}")
     else:
@@ -415,10 +353,10 @@ tabs_views = st.tabs(
 )
 
 with tabs_views[0]:
-    if n_transactions > n_displayed_records:
+    if n_transactions > _state[wd.WIDGET_KEYS["RECORDS_NUMBER"]]:
         # more records available than displayed, inform the user about the display selection made
         st.write(f"""
-        The top **{n_displayed_records}** selected transactions by **{cols.AMOUNT}**
+        The top **{_state[wd.WIDGET_KEYS["RECORDS_NUMBER"]]}** selected transactions by **{cols.AMOUNT}**
         """)
 
     # format the columns to display
@@ -454,7 +392,7 @@ with tabs_views[1]:
                 ORDER BY {cols_sql.TOTAL_VALUE_PAYMENTS} DESC NULLS LAST
                 LIMIT ?
             """,
-            params + [int(n_displayed_records)],
+            params + [_state[wd.WIDGET_KEYS["RECORDS_NUMBER"]]],
         ).fetchdf()
 
         if dset_suppliers.shape[0] < n_suppliers:
@@ -489,7 +427,7 @@ with tabs_views[1]:
                 ORDER BY {cols_sql.TOTAL_PAYMENTS} DESC NULLS LAST
                 LIMIT ?
             """,
-            params + [int(n_displayed_records)],
+            params + [_state[wd.WIDGET_KEYS["RECORDS_NUMBER"]]],
         ).fetchdf()
 
         if dset_suppliers.shape[0] < n_suppliers:
@@ -544,9 +482,9 @@ with tabs_views[2]:
     st.plotly_chart(fig, use_container_width=True)
 
 with tabs_views[3]:
-    if not is_spine or not all(
+    if not _state[wd.WIDGET_KEYS["IS_SPINE"]] or not all(
         [
-            st.session_state[KEYS_NUTS_NAME["SELECTION"][1]],
+            _state[KEYS_NUTS_NAME["SELECTION"][1]],
             selected_nuts["id"][1],
             selected_nuts["id"][2],
             selected_nuts["id"][3],
@@ -662,7 +600,7 @@ with tabs_views[3]:
                 hide_index=False,
             )
 with tabs_views[4]:
-    if is_spine is not True:
+    if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not True:
         st.info(
             f"""
             Registry distribution is only available when filtering for
