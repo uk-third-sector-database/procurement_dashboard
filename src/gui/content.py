@@ -3,6 +3,9 @@
 EMOJIS = {
     "INFO": "ⓘ",
     "WARNING": "⚠",
+    "SUPPLIERS": "🏬",
+    "TRANSACTIONS": "🤝",
+    "AMOUNT": "💷"
 }
 
 TEXT = {
@@ -12,6 +15,7 @@ TEXT = {
     "ERROR_INVALID_DATE_RANGE": f"{EMOJIS['WARNING']}Start date must be before end date.",
     "ERROR_NO_SOURCE_SELECTED": f"{EMOJIS['WARNING']}Please select at least one source.",
     "ERROR_INCOMPLETE_SELECTIONS": f"{EMOJIS['WARNING']} Please complete all selections.",
+    "ERROR_NO_DATA": f"{EMOJIS['WARNING']}No data matches the selected filters.",
 }
 
 WIDGETS = {
@@ -35,4 +39,18 @@ WIDGETS = {
     "IS_MANUAL_MATCH": {"label": "Manual match to spine?"},
     "IS_OTHER_MATCH": {"label": "Other match to spine?"},
     "NUTS_NAMES": {"ALL": {"label": "All"}},
+    "METRICS": {
+        "SUPPLIERS": {
+            "ALL": {"label": f"{EMOJIS['SUPPLIERS']} All suppliers"},
+            "SPINE": {"label": "TSOs"},
+        },
+        "TRANSACTIONS": {
+            "ALL": {"label": f"{EMOJIS['TRANSACTIONS']} All transactions"},
+            "SPINE": {"label": "Transactions with TSOs"},
+        },
+        "AMOUNT": {
+            "ALL": {"label": f"{EMOJIS['AMOUNT']} Total amount"},
+            "SPINE": {"label": "Amount to TSOs"},
+        }
+    }
 }

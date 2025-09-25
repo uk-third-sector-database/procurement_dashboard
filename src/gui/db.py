@@ -9,10 +9,11 @@ import streamlit as st
 
 import gui.utils as utils
 import utilities.shared as shared
-from utilities.columns import COLS
+from gui.content import TEXT
+from utilities.columns import COLS, COLUMNS_TO_DISPLAY_SQL
 
 VIEW_NAME = "data"
-
+NULLS = "NULLS LAST"
 
 @st.cache_resource
 def get_con() -> duckdb.DuckDBPyConnection:
@@ -198,3 +199,33 @@ def get_total_amount(con: duckdb.DuckDBPyConnection, where_clause: str, params: 
     assert row is not None, "SUM(Amount) query returned no row"
 
     return row[0]
+
+
+def get_raw_data(
+    con: duckdb.DuckDBPyConnection, where_clause: str, params: list[str]
+) -> pd.DataFrame:
+    """Get the raw data matching the given WHERE clause, limited to the number of records
+    specified in the state.
+    Args:
+        con (duckdb.DuckDBPyConnection): A DuckDB connection with the data view created.
+        where_clause (str): The SQL WHERE clause (without the "WHERE" keyword).
+        params (list[str]): The list of parameters for the SQL query.
+    Returns:
+        pd.DataFrame: The raw data matching the WHERE clause.
+    """
+    dset = con.execute(
+        f"""
+        SELECT {COLUMNS_TO_DISPLAY_SQL}
+        FROM data
+        WHERE {where_clause}
+        ORDER BY {quote_ident(COLS["AMOUNT"])} DESC {NULLS}
+        LIMIT ?
+        """,
+        params,
+    ).fetchdf()
+
+    if dset.empty:
+        st.warning(TEXT["ERROR_NO_DATA"])
+        st.stop()
+
+    return dset

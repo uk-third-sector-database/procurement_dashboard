@@ -9,6 +9,7 @@ import streamlit as st
 
 import gui.db as db
 import gui.sidebar as sd
+import gui.visualisations as vis
 import gui.widgets as wd
 import utilities.shared as shared
 from gui.content import TEXT, WIDGETS
@@ -16,7 +17,6 @@ from utilities.columns import (
     COLS,
     COLS_SQL,
     COLUMNS_DATE,
-    COLUMNS_TO_DISPLAY_SQL,
     COLUMNS_TO_DISPLAY_STYLES,
     REGISTRIES,
     quote_ident,
@@ -66,6 +66,9 @@ if _state[wd.WIDGET_KEYS["IS_SPINE"]] is True:
 
         if _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][2]]:
             wd.nuts_names_selector(con, 3)
+            if not _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]]:
+                st.warning(text.ERROR_INCOMPLETE_SELECTIONS)
+                st.stop()
         else:
             st.warning(text.ERROR_INCOMPLETE_SELECTIONS)
             st.stop()
@@ -77,57 +80,8 @@ else:
 
 where_clause, params = wd.build_where_clause_and_params()
 
-n_transactions = db.get_transactions_number(con, where_clause, params)
-n_suppliers = db.get_suppliers_number(con, where_clause, params)
-total_amount = db.get_total_amount(con, where_clause, params)
+vis.display_top_metrics(con, where_clause, params)
 
-if _state[wd.WIDGET_KEYS["IS_SPINE"]] is None and n_transactions > 0:
-    WHERE_CLAUSE_SPINE = where_clause + f" AND {cols_sql.SPINE} = TRUE"
-    n_suppliers_spine = db.get_suppliers_number(con, WHERE_CLAUSE_SPINE, params)
-    n_transactions_spine = db.get_transactions_number(con, WHERE_CLAUSE_SPINE, params)
-    total_amount_spine = db.get_total_amount(con, WHERE_CLAUSE_SPINE, params)
-else:
-    n_suppliers_spine: int | None = None
-    n_transactions_spine: int | None = None
-    total_amount_spine: float | None = None
-
-
-# get the raw dataset to display as top records by Amount
-dset_raw = con.execute(
-    f"""
-    SELECT {COLUMNS_TO_DISPLAY_SQL}
-    FROM data
-    WHERE {where_clause}
-    ORDER BY {cols_sql.AMOUNT} DESC {NULLS}
-    LIMIT ?
-    """,
-    params + [_state[wd.WIDGET_KEYS["RECORDS_NUMBER"]]],
-).fetchdf()
-
-if dset_raw.empty:
-    st.warning("No records available for the selected filters.")
-    st.stop()
-
-cols_metrics = st.columns(3)
-
-with cols_metrics[0].container(border=True):
-    if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not True and n_suppliers_spine is not None:
-        st.metric("🏬 Suppliers - all", f"{n_suppliers:,}")
-        st.metric("Suppliers - spine (TSO)", f"{n_suppliers_spine:,}")
-    else:
-        st.metric("🏬 Suppliers", f"{n_suppliers:,}")
-with cols_metrics[1].container(border=True):
-    if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not True and n_transactions_spine is not None:
-        st.metric("🤝 Transactions - all", f"{n_transactions:,}")
-        st.metric("Transactions - spine (TSO)", f"{n_transactions_spine:,}")
-    else:
-        st.metric("🤝 Transactions", f"{n_transactions:,}")
-with cols_metrics[2].container(border=True):
-    if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not True and total_amount_spine is not None:
-        st.metric("💷 Value - all", f"{total_amount:,.0f}")
-        st.metric("Value - spine (TSO)", f"{total_amount_spine:,.0f}")
-    else:
-        st.metric("💷 Value", f"{total_amount:,.0f}")
 
 tabs_views = st.tabs(
     [
@@ -140,12 +94,9 @@ tabs_views = st.tabs(
 )
 
 with tabs_views[0]:
-    if n_transactions > _state[wd.WIDGET_KEYS["RECORDS_NUMBER"]]:
-        # more records available than displayed, inform the user about the display selection made
-        st.write(f"""
-        The top **{_state[wd.WIDGET_KEYS["RECORDS_NUMBER"]]}**
-        selected transactions by **{cols.AMOUNT}**
-        """)
+    dset_raw = db.get_raw_data(
+        con, where_clause, params + [_state[wd.WIDGET_KEYS["RECORDS_NUMBER"]]]
+    )
 
     # format the columns to display
     for col in COLUMNS_DATE:
@@ -183,13 +134,6 @@ with tabs_views[1]:
             params + [_state[wd.WIDGET_KEYS["RECORDS_NUMBER"]]],
         ).fetchdf()
 
-        if dset_suppliers.shape[0] < n_suppliers:
-            st.write(
-                f"""
-                    The top **{dset_suppliers.shape[0]}** suppliers by
-                    **{cols.TOTAL_VALUE_PAYMENTS}**
-                """
-            )
         dset_styled = dset_suppliers.style.format(COLUMNS_TO_DISPLAY_STYLES)
         st.dataframe(dset_styled, use_container_width=True, hide_index=True)
 
@@ -218,13 +162,6 @@ with tabs_views[1]:
             params + [_state[wd.WIDGET_KEYS["RECORDS_NUMBER"]]],
         ).fetchdf()
 
-        if dset_suppliers.shape[0] < n_suppliers:
-            st.write(
-                f"""
-                    The top **{dset_suppliers.shape[0]}** suppliers by
-                    **{cols.TOTAL_PAYMENTS}**
-                """
-            )
         dset_styled = dset_suppliers.style.format(COLUMNS_TO_DISPLAY_STYLES)
         st.dataframe(dset_styled, use_container_width=True, hide_index=True)
 
