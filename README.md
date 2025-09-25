@@ -36,3 +36,13 @@ pdm run python src/processing/prepare_parquet.py data/raw/final_procurement_data
 ```
 
 This expects the raw dataset to be available in `data/raw/final_procurement_dataset.csv`. 
+
+## Docker
+
+To build the Docker image, run `./build.sh`.
+
+To run the Docker image:
+
+```shell
+docker run -p 8501:8501 uk-third-sector-procurement-dashboard
+```

@@ -1,0 +1,4 @@
+data/processed/*.z*
+.venv
+__pycache__
+notebooks
