@@ -138,14 +138,15 @@ def assign_state_nuts_keys(level: int) -> None:
         _state[WIDGET_KEYS["NUTS_NAMES"]["ALL"][level]] = False
 
 
-def nuts_names_selector(
-    level: int
-) -> None:
+def nuts_names_selector(con: duckdb.DuckDBPyConnection, level: int) -> None:
     """Render the NUTS names selector widget in the sidebar.
     Args:
         con (duckdb.DuckDBPyConnection): A DuckDB connection with the data view created.
         level (int): The NUTS level (1, 2, or 3).
     """
+
+    fetch_nuts_for_level(con, level)
+
     dcols = st.sidebar.columns([0.75, 0.25], gap=None, vertical_alignment="center")
     dcols[0].text(f"NUTS Level {level}")
     with dcols[1]:
@@ -177,3 +178,59 @@ def nuts_names_selector(
             ]
             .tolist()
         )
+
+
+def init_nuts_state_vars() -> None:
+    """Initialize session state variables for NUTS selectors."""
+    _state["DSET_NUTS"] = {1: None, 2: None, 3: None}
+    _state["NAMES_NUTS"] = {1: [], 2: [], 3: []}
+    _state["IDS_NUTS"] = {1: [], 2: [], 3: []}
+
+
+def fetch_nuts_for_level(con: duckdb.DuckDBPyConnection, level: int):
+    """Fetch NUTS names and IDs for a given level and update session state.
+
+    Args:
+        con (duckdb.DuckDBPyConnection): A DuckDB connection with the data view created.
+        level (int): The NUTS level (1, 2, or 3).
+    """
+    match level:
+        case 1:
+            _state["DSET_NUTS"][level], _state["NAMES_NUTS"][level] = db.fetch_nuts_level(
+                con, level=level, where=None, params=[]
+            )
+        case 2:
+            placeholders = ", ".join("?" for _ in _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]])
+            where_clause = f"{quote_ident(COLS['NUTS_NAME_1'])} IN ({placeholders})"
+            _state["DSET_NUTS"][level], _state["NAMES_NUTS"][level] = db.fetch_nuts_level(
+                con=con,
+                level=2,
+                where=where_clause,
+                params=_state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]],
+                order_by="NUTS_NAME_2",
+            )
+        case 3:
+            placeholders = ", ".join("?" for _ in _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][2]])
+            where_clause = f"{quote_ident(COLS['NUTS_NAME_2'])} IN ({placeholders})"
+            _state["DSET_NUTS"][level], _state["NAMES_NUTS"][level] = db.fetch_nuts_level(
+                con=con,
+                level=3,
+                where=where_clause,
+                params=_state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][2]],
+                order_by="NUTS_NAME_3",
+            )
+
+
+def reset_is_spine_state_vars() -> None:
+    """Reset session state variables related to the is_spine selector."""
+    _state[WIDGET_KEYS["IS_MANUAL_MATCH"]] = None
+    _state[WIDGET_KEYS["IS_OTHER_MATCH"]] = None
+    try:
+        del _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]]
+        del _state[WIDGET_KEYS["NUTS_NAMES"]["ALL"][1]]
+        del _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][2]]
+        del _state[WIDGET_KEYS["NUTS_NAMES"]["ALL"][2]]
+        del _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]]
+        del _state[WIDGET_KEYS["NUTS_NAMES"]["ALL"][3]]
+    except KeyError:
+        pass

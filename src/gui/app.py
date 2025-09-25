@@ -52,64 +52,28 @@ wd.payment_date_range_selector(con)
 wd.is_removed_selector()
 wd.is_spine_selector()
 
-_state["DSET_NUTS"] = {1: None, 2: None, 3: None}
-_state["NAMES_NUTS"] = {1: [], 2: [], 3: []}
-_state["IDS_NUTS"] = {1: [], 2: [], 3: []}
-
-
+wd.init_nuts_state_vars()
 wd.assign_state_nuts_keys(1)
 if _state[wd.WIDGET_KEYS["IS_SPINE"]] is True:
-    NUTS_LEVEL = 1
-    _state["DSET_NUTS"][NUTS_LEVEL], _state["NAMES_NUTS"][NUTS_LEVEL] = db.fetch_nuts_level(
-        con, level=NUTS_LEVEL, where=None, params=[]
-    )
-    wd.nuts_names_selector(NUTS_LEVEL)
-
-    if _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]]:
-        NUTS_LEVEL = 2
-        PLACEHOLDERS = ", ".join("?" for _ in _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]])
-        WHERE_CLAUSE = f"{quote_ident(COLS['NUTS_NAME_1'])} IN ({PLACEHOLDERS})"
-        _state["DSET_NUTS"][NUTS_LEVEL], _state["NAMES_NUTS"][NUTS_LEVEL] = db.fetch_nuts_level(
-            con=con,
-            level=2,
-            where=WHERE_CLAUSE,
-            params=_state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]],
-            order_by="NUTS_NAME_2",
-        )
-        wd.nuts_names_selector(NUTS_LEVEL)
-
-        if _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][2]]:
-            NUTS_LEVEL = 3
-            PLACEHOLDERS = ", ".join(
-                "?" for _ in _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][2]]
-            )
-            WHERE_CLAUSE = f"{quote_ident(COLS['NUTS_NAME_2'])} IN ({PLACEHOLDERS})"
-            _state["DSET_NUTS"][NUTS_LEVEL], _state["NAMES_NUTS"][NUTS_LEVEL] = db.fetch_nuts_level(
-                con=con,
-                level=3,
-                where=WHERE_CLAUSE,
-                params=_state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][2]],
-                order_by="NUTS_NAME_3",
-            )
-
-            wd.nuts_names_selector(NUTS_LEVEL)
-
     # manual and other match selectors
     wd.is_manual_match_selector()
     wd.is_other_match_selector()
 
+    # NUTS selectors
+    wd.nuts_names_selector(con, 1)
+    if _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]]:
+        wd.nuts_names_selector(con, 2)
+
+        if _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][2]]:
+            wd.nuts_names_selector(con, 3)
+        else:
+            st.warning(text.ERROR_INCOMPLETE_SELECTIONS)
+            st.stop()
+    else:
+        st.warning(text.ERROR_INCOMPLETE_SELECTIONS)
+        st.stop()
 else:
-    _state[wd.WIDGET_KEYS["IS_MANUAL_MATCH"]] = None
-    _state[wd.WIDGET_KEYS["IS_OTHER_MATCH"]] = None
-    try:
-        del _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]]
-        del _state[wd.WIDGET_KEYS["NUTS_NAMES"]["ALL"][1]]
-        del _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][2]]
-        del _state[wd.WIDGET_KEYS["NUTS_NAMES"]["ALL"][2]]
-        del _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]]
-        del _state[wd.WIDGET_KEYS["NUTS_NAMES"]["ALL"][3]]
-    except KeyError:
-        pass
+    wd.reset_is_spine_state_vars()
 
 
 # build the WHERE clause and parameters
