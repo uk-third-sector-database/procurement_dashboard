@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 
 import geopandas as gpd
+from numpy import e
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -30,12 +31,19 @@ widgets = SimpleNamespace(**WIDGETS)
 
 NULLS = "NULLS LAST"
 
-KEY_NUTS_NAME_SELECTION_1 = "multiselect_nuts_name_1"
-KEY_NUTS_NAME_SELECTION_ALL_1 = "checkbox_select_all_nuts_1"
-KEY_NUTS_NAME_SELECTION_2 = "multiselect_nuts_name_2"
-KEY_NUTS_NAME_SELECTION_ALL_2 = "checkbox_select_all_nuts_2"
-KEY_NUTS_NAME_SELECTION_3 = "multiselect_nuts_name_3"
-KEY_NUTS_NAME_SELECTION_ALL_3 = "checkbox_select_all_nuts_3"
+KEYS_NUTS_NAME = {
+    "SELECTION": {
+        1: "multiselect_nuts_name_1",
+        2: "multiselect_nuts_name_2",
+        3: "multiselect_nuts_name_3",
+    },
+    "ALL": {
+        1: "checkbox_all_nuts_name_1",
+        2: "checkbox_all_nuts_name_2",
+        3: "checkbox_all_nuts_name_3",
+    },
+}
+
 
 st.set_page_config(
     layout="wide",
@@ -62,16 +70,15 @@ if not selected_sources:
 
 # sidebar widget to select the payment date range with reset button
 dmin, dmax = db.fetch_date_range(con, cols_sql.PAYMENT_DATE)
-KEY_PAYMENT_DATE_RANGE = f"{cols.PAYMENT_DATE}_range"
+KEY_PAYMENT_DATE_RANGE = "date_range"
 if KEY_PAYMENT_DATE_RANGE not in st.session_state:
     st.session_state[KEY_PAYMENT_DATE_RANGE] = (dmin, dmax)
-
 date_cols = st.sidebar.columns([7, 1], vertical_alignment="bottom")
 with date_cols[1]:
     if st.button(**widgets.DATE_RANGE_RESET):
         st.session_state[KEY_PAYMENT_DATE_RANGE] = (dmin, dmax)
 with date_cols[0]:
-    date_range = date_cols[0].date_input(
+    date_cols[0].date_input(
         cols.PAYMENT_DATE,
         min_value=dmin,
         max_value=dmax,
@@ -79,11 +86,14 @@ with date_cols[0]:
         **widgets.DATE_RANGE,
     )
 
-if not (isinstance(date_range, tuple | list) and len(date_range) == 2):
+if not (
+    isinstance(st.session_state[KEY_PAYMENT_DATE_RANGE], tuple | list)
+    and len(st.session_state[KEY_PAYMENT_DATE_RANGE]) == 2
+):
     st.sidebar.warning(text.ERROR_INCOMPLETE_DATE_RANGE)
     st.stop()
 else:
-    start_date, end_date = date_range
+    start_date, end_date = st.session_state[KEY_PAYMENT_DATE_RANGE]
     if start_date > end_date:
         st.sidebar.warning(text.ERROR_INVALID_DATE_RANGE)
         st.stop()
@@ -102,74 +112,97 @@ is_spine = st.sidebar.selectbox(
     format_func=lambda x: text.OPTION_NEITHER if x is None else str(x),
 )
 
+dset_nuts: dict[int, pd.DataFrame | None] = {1: None, 2: None, 3: None}
+names_nuts: dict[int, list[str]] = {1: [], 2: [], 3: []}
+selected_nuts: dict[str, dict[int, list[str] | None]] = {
+    "name": {1: None, 2: None, 3: None},
+    "id": {1: None, 2: None, 3: None},
+}
+
+
+def assign_state_nuts_keys(level: int) -> None:
+    """Ensure the session state keys for NUTS level selectors exist."""
+    if KEYS_NUTS_NAME["SELECTION"][level] not in st.session_state:
+        st.session_state[KEYS_NUTS_NAME["SELECTION"][level]] = []
+    if KEYS_NUTS_NAME["ALL"][level] not in st.session_state:
+        st.session_state[KEYS_NUTS_NAME["ALL"][level]] = False
+
+assign_state_nuts_keys(1)
 if is_spine is True:
-    selected_nuts_1_ids = []
-    selected_nuts_2_ids = []
-    selected_nuts_3_ids = []
-
-    nuts_level1, nuts_name_1s = db.fetch_nuts_level(con, level=1, where=None, params=[])
-
-    if KEY_NUTS_NAME_SELECTION_1 not in st.session_state:
-        st.session_state[KEY_NUTS_NAME_SELECTION_1] = []
-    if KEY_NUTS_NAME_SELECTION_ALL_1 not in st.session_state:
-        st.session_state[KEY_NUTS_NAME_SELECTION_ALL_1] = False
+    NUTS_LEVEL = 1
+    dset_nuts[NUTS_LEVEL], names_nuts[NUTS_LEVEL] = db.fetch_nuts_level(
+        con, level=NUTS_LEVEL, where=None, params=[]
+    )
 
     cols_nuts_1 = st.sidebar.columns([0.75, 0.25], gap=None, vertical_alignment="center")
     cols_nuts_1[0].text("NUTS Level 1")
     with cols_nuts_1[1]:
-        select_all_nuts_names_1 = st.checkbox("All", key=KEY_NUTS_NAME_SELECTION_ALL_1)
-    if select_all_nuts_names_1 and st.session_state[KEY_NUTS_NAME_SELECTION_1] != nuts_name_1s:
-        st.session_state[KEY_NUTS_NAME_SELECTION_1] = nuts_name_1s
+        select_all_nuts_names_1 = st.checkbox("All", key=KEYS_NUTS_NAME["ALL"][1])
+    if (
+        select_all_nuts_names_1
+        and st.session_state[KEYS_NUTS_NAME["SELECTION"][1]] != names_nuts[NUTS_LEVEL]
+    ):
+        st.session_state[KEYS_NUTS_NAME["SELECTION"][1]] = names_nuts[NUTS_LEVEL]
         st.rerun()
 
-    selected_nuts_1_names = st.sidebar.multiselect(
+    st.sidebar.multiselect(
         "NUTS Level 1",
-        options=nuts_name_1s,
-        key=KEY_NUTS_NAME_SELECTION_1,
         label_visibility="collapsed",
+        options=names_nuts[NUTS_LEVEL],
+        key=KEYS_NUTS_NAME["SELECTION"][1],
         disabled=select_all_nuts_names_1,
     )
-    if selected_nuts_1_names:
-        selected_nuts_1_ids = nuts_level1.loc[
-            nuts_level1[cols.NUTS_NAME_1].isin(selected_nuts_1_names), cols.NUTS_ID_1
-        ].tolist()
 
-        PLACEHOLDERS = ", ".join("?" for _ in selected_nuts_1_names)
+    if st.session_state[KEYS_NUTS_NAME["SELECTION"][1]]:
+        selected_nuts["id"][1] = (
+            dset_nuts[1]
+            .loc[
+                dset_nuts[1][cols.NUTS_NAME_1].isin(
+                    st.session_state[KEYS_NUTS_NAME["SELECTION"][1]]
+                ),
+                cols.NUTS_ID_1,
+            ]
+            .tolist()
+        )
+
+        NUTS_LEVEL = 2
+        PLACEHOLDERS = ", ".join("?" for _ in st.session_state[KEYS_NUTS_NAME["SELECTION"][1]])
         WHERE_CLAUSE = f"{quote_ident(COLS['NUTS_NAME_1'])} IN ({PLACEHOLDERS})"
         nuts_level2, nuts_name_2s = db.fetch_nuts_level(
             con=con,
             level=2,
             where=WHERE_CLAUSE,
-            params=selected_nuts_1_names,
+            params=st.session_state[KEYS_NUTS_NAME["SELECTION"][1]],
             order_by="NUTS_NAME_2",
         )
 
-        if KEY_NUTS_NAME_SELECTION_2 not in st.session_state:
-            st.session_state[KEY_NUTS_NAME_SELECTION_2] = []
-        if KEY_NUTS_NAME_SELECTION_ALL_2 not in st.session_state:
-            st.session_state[KEY_NUTS_NAME_SELECTION_ALL_2] = False
+        assign_state_nuts_keys(NUTS_LEVEL)
 
         cols_nuts_2 = st.sidebar.columns([0.75, 0.25], gap=None, vertical_alignment="center")
         cols_nuts_2[0].text("NUTS Level 2")
         with cols_nuts_2[1]:
-            select_all_nuts_names_2 = st.checkbox("All", key=KEY_NUTS_NAME_SELECTION_ALL_2)
-        if select_all_nuts_names_2 and st.session_state[KEY_NUTS_NAME_SELECTION_2] != nuts_name_2s:
-            st.session_state[KEY_NUTS_NAME_SELECTION_2] = nuts_name_2s
+            select_all_nuts_names_2 = st.checkbox("All", key=KEYS_NUTS_NAME["ALL"][2])
+        if (
+            select_all_nuts_names_2
+            and st.session_state[KEYS_NUTS_NAME["SELECTION"][2]] != nuts_name_2s
+        ):
+            st.session_state[KEYS_NUTS_NAME["SELECTION"][2]] = nuts_name_2s
             st.rerun()
 
         selected_nuts_2_names = st.sidebar.multiselect(
             "NUTS Level 2",
             options=nuts_name_2s,
-            key=KEY_NUTS_NAME_SELECTION_2,
+            key=KEYS_NUTS_NAME["SELECTION"][2],
             label_visibility="collapsed",
             disabled=select_all_nuts_names_2,
         )
 
         if selected_nuts_2_names:
-            selected_nuts_2_ids = nuts_level2.loc[
+            selected_nuts["id"][2] = nuts_level2.loc[
                 nuts_level2[cols.NUTS_NAME_2].isin(selected_nuts_2_names), cols.NUTS_ID_2
             ].tolist()
 
+            NUTS_LEVEL = 3
             PLACEHOLDERS = ", ".join("?" for _ in selected_nuts_2_names)
             WHERE_CLAUSE = f"{quote_ident(COLS['NUTS_NAME_2'])} IN ({PLACEHOLDERS})"
             nuts_level3, nuts_name_3s = db.fetch_nuts_level(
@@ -180,32 +213,29 @@ if is_spine is True:
                 order_by="NUTS_NAME_3",
             )
 
-            if KEY_NUTS_NAME_SELECTION_3 not in st.session_state:
-                st.session_state[KEY_NUTS_NAME_SELECTION_3] = []
-            if KEY_NUTS_NAME_SELECTION_ALL_3 not in st.session_state:
-                st.session_state[KEY_NUTS_NAME_SELECTION_ALL_3] = False
+            assign_state_nuts_keys(NUTS_LEVEL)
 
             cols_nuts_3 = st.sidebar.columns([0.75, 0.25], gap=None, vertical_alignment="center")
             cols_nuts_3[0].text("NUTS Level 3")
             with cols_nuts_3[1]:
-                select_all_nuts_names_3 = st.checkbox("All", key=KEY_NUTS_NAME_SELECTION_ALL_3)
+                select_all_nuts_names_3 = st.checkbox("All", key=KEYS_NUTS_NAME["ALL"][3])
             if (
                 select_all_nuts_names_3
-                and st.session_state[KEY_NUTS_NAME_SELECTION_3] != nuts_name_3s
+                and st.session_state[KEYS_NUTS_NAME["SELECTION"][3]] != nuts_name_3s
             ):
-                st.session_state[KEY_NUTS_NAME_SELECTION_3] = nuts_name_3s
+                st.session_state[KEYS_NUTS_NAME["SELECTION"][3]] = nuts_name_3s
                 st.rerun()
 
             selected_nuts_3_names = st.sidebar.multiselect(
                 "NUTS Level 3",
                 options=nuts_name_3s,
-                key=KEY_NUTS_NAME_SELECTION_3,
+                key=KEYS_NUTS_NAME["SELECTION"][3],
                 label_visibility="collapsed",
                 disabled=select_all_nuts_names_3,
             )
 
             if len(selected_nuts_3_names):
-                selected_nuts_3_ids = nuts_level3.loc[
+                selected_nuts["id"][3] = nuts_level3.loc[
                     nuts_level3[cols.NUTS_NAME_3].isin(selected_nuts_3_names), cols.NUTS_ID_3
                 ].tolist()
     is_manual_match = st.sidebar.selectbox(
@@ -222,21 +252,15 @@ if is_spine is True:
         help=f"Choose value for the '{cols.OTHER_MATCH}' column.",
     )
 else:
-    selected_nuts_1_names: list | None = None
-    selected_nuts_1_ids: list | None = None
-    selected_nuts_2_names: list | None = None
-    selected_nuts_2_ids: list | None = None
-    selected_nuts_3_names: list | None = None
-    selected_nuts_3_ids: list | None = None
     is_manual_match: bool | None = None
     is_other_match: bool | None = None
     try:
-        del st.session_state[KEY_NUTS_NAME_SELECTION_1]
-        del st.session_state[KEY_NUTS_NAME_SELECTION_ALL_1]
-        del st.session_state[KEY_NUTS_NAME_SELECTION_2]
-        del st.session_state[KEY_NUTS_NAME_SELECTION_ALL_2]
-        del st.session_state[KEY_NUTS_NAME_SELECTION_3]
-        del st.session_state[KEY_NUTS_NAME_SELECTION_ALL_3]
+        del st.session_state[KEYS_NUTS_NAME["SELECTION"][1]]
+        del st.session_state[KEYS_NUTS_NAME["ALL"][1]]
+        del st.session_state[KEYS_NUTS_NAME["SELECTION"][2]]
+        del st.session_state[KEYS_NUTS_NAME["ALL"][2]]
+        del st.session_state[KEYS_NUTS_NAME["SELECTION"][3]]
+        del st.session_state[KEYS_NUTS_NAME["ALL"][3]]
     except KeyError:
         pass
 
@@ -249,11 +273,17 @@ PLACEHOLDERS = ", ".join("?" for _ in selected_sources)
 clauses.append(f"{cols_sql.SOURCE} IN ({PLACEHOLDERS})")
 params.extend(selected_sources)
 
-# nuts_name_1s
-if selected_nuts_1_names and len(selected_nuts_1_names) > 0:
-    PLACEHOLDERS = ", ".join("?" for _ in selected_nuts_1_names)
-    clauses.append(f"{cols_sql.NUTS_NAME_1} IN ({PLACEHOLDERS})")
-    params.extend(selected_nuts_1_names)
+try:
+    if (
+        is_spine and 
+        st.session_state[KEYS_NUTS_NAME["SELECTION"][3]]
+        and len(st.session_state[KEYS_NUTS_NAME["SELECTION"][3]]) > 0
+    ):
+        PLACEHOLDERS = ", ".join("?" for _ in st.session_state[KEYS_NUTS_NAME["SELECTION"][3]])
+        clauses.append(f"{cols_sql.NUTS_NAME_3} IN ({PLACEHOLDERS})")
+        params.extend(st.session_state[KEYS_NUTS_NAME["SELECTION"][3]])
+except KeyError:
+    pass
 
 # is spine
 if is_spine is not None:
@@ -515,7 +545,12 @@ with tabs_views[2]:
 
 with tabs_views[3]:
     if not is_spine or not all(
-        [selected_nuts_1_names, selected_nuts_1_ids, selected_nuts_2_ids, selected_nuts_3_ids]
+        [
+            st.session_state[KEYS_NUTS_NAME["SELECTION"][1]],
+            selected_nuts["id"][1],
+            selected_nuts["id"][2],
+            selected_nuts["id"][3],
+        ]
     ):
         st.info(
             f"""
@@ -528,13 +563,13 @@ with tabs_views[3]:
         # nuts = nuts[nuts.CNTR_CODE == "UK"].copy()
 
         # mask = (
-        #     (nuts["LEVL_CODE"].eq(1) & nuts["NUTS_ID"].isin(selected_nuts_1_ids))
-        #     | (nuts["LEVL_CODE"].eq(2) & nuts["NUTS_ID"].isin(selected_nuts_2_ids))
-        #     | (nuts["LEVL_CODE"].eq(3) & nuts["NUTS_ID"].isin(selected_nuts_3_ids))
+        #     (nuts["LEVL_CODE"].eq(1) & nuts["NUTS_ID"].isin(selected_nuts["id"][1]))
+        #     | (nuts["LEVL_CODE"].eq(2) & nuts["NUTS_ID"].isin(selected_nuts["id"][2]))
+        #     | (nuts["LEVL_CODE"].eq(3) & nuts["NUTS_ID"].isin(selected_nuts["id"][3]))
         # )
-        ids_1 = selected_nuts_1_ids or []
-        ids_2 = selected_nuts_2_ids or []
-        ids_3 = selected_nuts_3_ids or []
+        ids_1 = selected_nuts["id"][1] or []
+        ids_2 = selected_nuts["id"][2] or []
+        ids_3 = selected_nuts["id"][3] or []
 
         mask = (
             (nuts["LEVL_CODE"].eq(1) & nuts["NUTS_ID"].isin(ids_1))

@@ -106,7 +106,7 @@ def fetch_nuts_level(
     order_by: str | None = None,
     view: str = VIEW_NAME,
 ) -> tuple[pd.DataFrame, list[str]]:
-    """Fetch distinct (id, name) pairs for a NUTS level and return dataset + processed names.
+    """Fetch distinct (id, name) pairs for a NUTS level and return dataset & processed names.
     
     Args:
         con: DuckDB connection.
@@ -115,6 +115,12 @@ def fetch_nuts_level(
         params: Optional list of parameters for the SQL query.
         order_by: Optional column name to order the results by (defaults to name column).
         view: The view/table name (default "data").
+
+    Returns:
+        A tuple (dataset, processed_names) where dataset is a DataFrame with columns
+        [COLS[f"NUTS_ID_{level}"], COLS[f"NUTS_NAME_{level}"]] and processed_names is a list of
+        cleaned-up names for display.
+    Raises:
     """
 
     col_id = quote_ident(COLS[f"NUTS_ID_{level}"])
