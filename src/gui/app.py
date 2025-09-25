@@ -77,56 +77,15 @@ else:
 
 where_clause, params = wd.build_where_clause_and_params()
 
-# transactions
-row = con.execute(
-    f"SELECT COUNT(*) FROM data WHERE {where_clause}",
-    params,
-).fetchone()
-assert row is not None, "COUNT(*) query returned no row"
-n_transactions = row[0]
-
-# suppliers
-row = con.execute(
-    f"SELECT COUNT(DISTINCT {cols_sql.SUPPLIER}) FROM data WHERE {where_clause}",
-    params,
-).fetchone()
-assert row is not None, "COUNT(DISTINCT Supplier) query returned no row"
-n_suppliers = row[0]
-
-# total amount
-row = con.execute(
-    f"SELECT SUM({cols_sql.AMOUNT}) FROM data WHERE {where_clause}",
-    params,
-).fetchone()
-assert row is not None, "SUM(Amount) query returned no row"
-total_amount = row[0]
+n_transactions = db.get_transactions_number(con, where_clause, params)
+n_suppliers = db.get_suppliers_number(con, where_clause, params)
+total_amount = db.get_total_amount(con, where_clause, params)
 
 if _state[wd.WIDGET_KEYS["IS_SPINE"]] is None and n_transactions > 0:
     WHERE_CLAUSE_SPINE = where_clause + f" AND {cols_sql.SPINE} = TRUE"
-
-    # suppliers (spine)
-    row = con.execute(
-        f"SELECT COUNT(DISTINCT {cols_sql.SUPPLIER}) FROM data WHERE {WHERE_CLAUSE_SPINE}",
-        params,
-    ).fetchone()
-    assert row is not None, "COUNT(DISTINCT Supplier) query (spine) returned no row"
-    n_suppliers_spine = row[0]
-
-    # transactions (spine)
-    row = con.execute(
-        f"SELECT COUNT(*) FROM data WHERE {WHERE_CLAUSE_SPINE}",
-        params,
-    ).fetchone()
-    assert row is not None, "COUNT(*) query (spine) returned no row"
-    n_transactions_spine = row[0]
-
-    # total amount (spine)
-    row = con.execute(
-        f"SELECT SUM({cols_sql.AMOUNT}) FROM data WHERE {WHERE_CLAUSE_SPINE}",
-        params,
-    ).fetchone()
-    assert row is not None, "SUM(Amount) query (spine) returned no row"
-    total_amount_spine = row[0]
+    n_suppliers_spine = db.get_suppliers_number(con, WHERE_CLAUSE_SPINE, params)
+    n_transactions_spine = db.get_transactions_number(con, WHERE_CLAUSE_SPINE, params)
+    total_amount_spine = db.get_total_amount(con, WHERE_CLAUSE_SPINE, params)
 else:
     n_suppliers_spine: int | None = None
     n_transactions_spine: int | None = None

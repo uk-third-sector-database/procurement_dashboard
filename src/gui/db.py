@@ -40,6 +40,7 @@ def quote_ident(name: str) -> str:
     """
     return '"' + name.replace('"', '""') + '"'
 
+
 @st.cache_data
 def get_column_names(con: duckdb.DuckDBPyConnection) -> list[str]:
     """Get the column names of the data view.
@@ -107,7 +108,7 @@ def fetch_nuts_level(
     view: str = VIEW_NAME,
 ) -> tuple[pd.DataFrame, list[str]]:
     """Fetch distinct (id, name) pairs for a NUTS level and return dataset & processed names.
-    
+
     Args:
         con: DuckDB connection.
         level: NUTS level (0, 1, 2, or 3).
@@ -138,3 +139,62 @@ def fetch_nuts_level(
     dset.columns = [COLS[f"NUTS_ID_{level}"], COLS[f"NUTS_NAME_{level}"]]
 
     return dset, utils.process_nuts_names(dset[COLS[f"NUTS_NAME_{level}"]].tolist())
+
+
+def get_transactions_number(
+    con: duckdb.DuckDBPyConnection, where_clause: str, params: list[str]
+) -> int:
+    """Get the number of transactions matching the given WHERE clause.
+    Args:
+        con (duckdb.DuckDBPyConnection): A DuckDB connection with the data view created.
+        where_clause (str): The SQL WHERE clause (without the "WHERE" keyword).
+        params (list[str]): The list of parameters for the SQL query.
+    Returns:
+        int: The number of transactions matching the WHERE clause.
+    """
+    row = con.execute(
+        f"SELECT COUNT(*) FROM data WHERE {where_clause}",
+        params,
+    ).fetchone()
+    assert row is not None, "COUNT(*) query returned no row"
+
+    return row[0]
+
+
+def get_suppliers_number(
+    con: duckdb.DuckDBPyConnection, where_clause: str, params: list[str]
+) -> int:
+    """Get the number of suppliers matching the given WHERE clause.
+    Args:
+        con (duckdb.DuckDBPyConnection): A DuckDB connection with the data view created.
+        where_clause (str): The SQL WHERE clause (without the "WHERE" keyword).
+        params (list[str]): The list of parameters for the SQL query.
+    Returns:
+        int: The number of suppliers matching the WHERE clause.
+    """
+
+    row = con.execute(
+        f"SELECT COUNT(DISTINCT {quote_ident(COLS['SUPPLIER'])}) FROM data WHERE {where_clause}",
+        params,
+    ).fetchone()
+    assert row is not None, "COUNT(DISTINCT Supplier) query returned no row"
+
+    return row[0]
+
+
+def get_total_amount(con: duckdb.DuckDBPyConnection, where_clause: str, params: list[str]) -> float:
+    """Get the total amount matching the given WHERE clause.
+    Args:
+        con (duckdb.DuckDBPyConnection): A DuckDB connection with the data view created.
+        where_clause (str): The SQL WHERE clause (without the "WHERE" keyword).
+        params (list[str]): The list of parameters for the SQL query.
+    Returns:
+        float: The total amount matching the WHERE clause.
+    """
+    row = con.execute(
+        f"SELECT SUM({quote_ident(COLS['AMOUNT'])}) FROM data WHERE {where_clause}",
+        params,
+    ).fetchone()
+    assert row is not None, "SUM(Amount) query returned no row"
+
+    return row[0]
