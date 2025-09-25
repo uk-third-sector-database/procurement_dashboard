@@ -107,18 +107,6 @@ if is_spine is True:
     selected_nuts_2_ids = []
     selected_nuts_3_ids = []
 
-    # nuts_level1 = con.execute(
-    #     f"""
-    #         SELECT DISTINCT
-    #             {cols_sql.NUTS_ID_1},
-    #             {cols_sql.NUTS_NAME_1}
-    #         FROM data
-    #         ORDER BY {cols_sql.NUTS_NAME_1}
-    #         """
-    # ).fetchdf()
-
-    # nuts_name_1s = utils.process_nuts_names(nuts_level1[cols.NUTS_NAME_1].tolist())
-
     nuts_level1, nuts_name_1s = db.fetch_nuts_level(con, level=1, where=None, params=[])
 
     if KEY_NUTS_NAME_SELECTION_1 not in st.session_state:
@@ -146,20 +134,6 @@ if is_spine is True:
             nuts_level1[cols.NUTS_NAME_1].isin(selected_nuts_1_names), cols.NUTS_ID_1
         ].tolist()
 
-        # nuts_level2 = con.execute(
-        #     f"""
-        #         SELECT DISTINCT
-        #             {cols_sql.NUTS_ID_2},
-        #             {cols_sql.NUTS_NAME_2}
-        #         FROM data
-        #         WHERE {cols_sql.NUTS_NAME_1} IN ({", ".join(["?"] * len(selected_nuts_1_names))})
-        #         ORDER BY {cols_sql.NUTS_NAME_2}
-        #         """,
-        #     selected_nuts_1_names,
-        # ).fetchdf()
-
-        # nuts_name_2s = utils.process_nuts_names(nuts_level2[cols.NUTS_NAME_2].tolist())
-
         PLACEHOLDERS = ", ".join("?" for _ in selected_nuts_1_names)
         WHERE_CLAUSE = f"{quote_ident(COLS['NUTS_NAME_1'])} IN ({PLACEHOLDERS})"
         nuts_level2, nuts_name_2s = db.fetch_nuts_level(
@@ -167,7 +141,7 @@ if is_spine is True:
             level=2,
             where=WHERE_CLAUSE,
             params=selected_nuts_1_names,
-            order_by="COLS['NUTS_NAME_2']",
+            order_by="NUTS_NAME_2",
         )
 
         if KEY_NUTS_NAME_SELECTION_2 not in st.session_state:
@@ -196,20 +170,15 @@ if is_spine is True:
                 nuts_level2[cols.NUTS_NAME_2].isin(selected_nuts_2_names), cols.NUTS_ID_2
             ].tolist()
 
-            nuts_level3 = con.execute(
-                f"""
-                    SELECT DISTINCT 
-                        {cols_sql.NUTS_ID_3},
-                        {cols_sql.NUTS_NAME_3}
-                    FROM data
-                    WHERE {cols_sql.NUTS_NAME_2} IN
-                        ({", ".join(["?"] * len(selected_nuts_2_names))})
-                    ORDER BY 1
-                    """,
-                selected_nuts_2_names,
-            ).fetchdf()
-
-            nuts_name_3s = utils.process_nuts_names(nuts_level3[cols.NUTS_NAME_3].tolist())
+            PLACEHOLDERS = ", ".join("?" for _ in selected_nuts_2_names)
+            WHERE_CLAUSE = f"{quote_ident(COLS['NUTS_NAME_2'])} IN ({PLACEHOLDERS})"
+            nuts_level3, nuts_name_3s = db.fetch_nuts_level(
+                con=con,
+                level=3,
+                where=WHERE_CLAUSE,
+                params=selected_nuts_2_names,
+                order_by="NUTS_NAME_3",
+            )
 
             if KEY_NUTS_NAME_SELECTION_3 not in st.session_state:
                 st.session_state[KEY_NUTS_NAME_SELECTION_3] = []
