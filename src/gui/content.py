@@ -13,8 +13,16 @@ TEXT = {
 }
 
 WIDGETS = {
-    "RECORDS_NUMBER": {
+    "TRANSACTIONS_NUMBER": {
         "label": "Transactions to display (up to)",
+        "min_value": 10,
+        "max_value": 500,
+        "value": 250,
+        "step": 10,
+        "width": 200,
+    },
+    "SUPPLIERS_NUMBER": {
+        "label": "Number of suppliers to display",
         "min_value": 10,
         "max_value": 500,
         "value": 250,
@@ -49,12 +57,44 @@ WIDGETS = {
         },
     },
     "VIEW_TABS": {
-        "titles": [
+        "COMMON": [
             "Raw data",
-            "Supplier distributions",
+            "Suppliers",
             "Timecourses",
-            "Geographical distributions",
-            "Registry distributions",
+        ],
+        "SPINE": ["Geographical distributions",
+            "Registry distributions"
         ]
+    },
+    "SUPPLIERS_RANKING": {
+        "label": "Rank suppliers by"
+    },
+    "TIMECOURSES": {
+        "DATA": {
+            "label": "Choose what to plot",
+        },
+        "FORMAT": {
+            "label": "Choose how to plot"
+        },
+        "FORMATS": ["Bar chart", "Line chart"]
+    },
+    "GEOGRAPHICAL_DISTRIBUTION": {
+        "DATA": {
+            "label": "Choose what to plot",
+        },
+        "LEGEND": {
+            "label": "View legend",
+        },
+        "MAP": {
+            "colorscale": "Blues",
+        }
+    },
+    "REGISTRIES": {
+        "DATA": {
+            "label": "Choose what to plot",
+        },
+        "VIEW": {
+            "label": "View registry aggregates data",
+        }
     }
 }

@@ -4,12 +4,13 @@ from datetime import date
 from typing import Any
 
 import duckdb
+import geopandas as gpd
 import pandas as pd
 import streamlit as st
 
-import gui.utils as utils
-import utilities.shared as shared
+from gui import utils
 from gui.content import TEXT
+from utilities import shared
 from utilities.columns import COLS, COLUMNS_TO_DISPLAY_SQL
 
 VIEW_NAME = "data"
@@ -18,6 +19,7 @@ NULLS = "NULLS LAST"
 @st.cache_resource
 def get_con() -> duckdb.DuckDBPyConnection:
     """Get a cached DuckDB connection with the data loaded as a view.
+        Use the connection in other functions with con = get_con()
 
     Returns:
         duckdb.DuckDBPyConnection: A DuckDB connection with the data view created.
@@ -28,6 +30,23 @@ def get_con() -> duckdb.DuckDBPyConnection:
 
     return con
 
+@st.cache_resource
+def get_shape_file() -> gpd.GeoDataFrame:
+    """Get the cached GeoDataFrame for the NUTS shapes."""
+    return gpd.read_file(shared.SHAPE_FILE).to_crs(epsg=4326)
+
+
+def run_query(sql: str, params: list[Any] | None = None) -> pd.DataFrame:
+    """Run a SQL query and return the results as a DataFrame.
+
+    Args:
+        sql (str): The SQL query to run.
+        params (list[Any] | None): Optional list of parameters for the SQL query.
+
+    Returns:
+        pd.DataFrame: The results of the query as a DataFrame.
+    """
+    return get_con().execute(sql, params).fetchdf()
 
 def quote_ident(name: str) -> str:
     """
@@ -43,37 +62,36 @@ def quote_ident(name: str) -> str:
 
 
 @st.cache_data
-def get_column_names(con: duckdb.DuckDBPyConnection) -> list[str]:
+def get_column_names() -> list[str]:
     """Get the column names of the data view.
-    Args:
-        con (duckdb.DuckDBPyConnection): A DuckDB connection with the data view created.
+    
     Returns:
         list[str]: A list of column names.
     """
+    con = get_con()
     return [row[1] for row in con.execute(f"PRAGMA table_info('{VIEW_NAME}')").fetchall()]
 
-
+@st.cache_data
 def fetch_distinct_values(
-    con: duckdb.DuckDBPyConnection, col_name: str, view: str = VIEW_NAME
+    col_name: str, view: str = VIEW_NAME
 ) -> list[Any]:
     """
     Fetch distinct values from a column in a DuckDB view.
 
     Args:
-        con: DuckDB connection.
         col_name: The column name in the data view.
         view: The view/table name (default VIEW_NAME).
 
     Returns:
         A list of distinct values from that column.
     """
+    con = get_con()
     col_sql = quote_ident(col_name)
     df = con.execute(f"SELECT DISTINCT {col_sql} FROM {quote_ident(view)} ORDER BY 1").fetchdf()
     return df[col_name].tolist()
 
-
+@st.cache_data
 def fetch_date_range(
-    con: duckdb.DuckDBPyConnection,
     col: str,
     view: str = VIEW_NAME,
 ) -> tuple[date | None, date | None]:
@@ -81,13 +99,13 @@ def fetch_date_range(
     Fetch the minimum and maximum date from a column in a DuckDB view.
 
     Args:
-        con: DuckDB connection.
         col: The column name (e.g. cols_sql.PAYMENT_DATE).
         view: The view/table name (default VIEW_NAME).
 
     Returns:
         A tuple (dmin, dmax) where either can be None if the column is empty.
     """
+    con = get_con()
     row = con.execute(
         f"""
         SELECT
@@ -99,9 +117,8 @@ def fetch_date_range(
     assert row is not None, f"Failed to retrieve date range for {col}"
     return row[0], row[1]
 
-
+@st.cache_data
 def fetch_nuts_level(
-    con: duckdb.DuckDBPyConnection,
     level: int,
     where: str | None,
     params: list[str],
@@ -111,7 +128,6 @@ def fetch_nuts_level(
     """Fetch distinct (id, name) pairs for a NUTS level and return dataset & processed names.
 
     Args:
-        con: DuckDB connection.
         level: NUTS level (0, 1, 2, or 3).
         where: Optional SQL WHERE clause (without the "WHERE" keyword).
         params: Optional list of parameters for the SQL query.
@@ -124,7 +140,7 @@ def fetch_nuts_level(
         cleaned-up names for display.
     Raises:
     """
-
+    con = get_con()
     col_id = quote_ident(COLS[f"NUTS_ID_{level}"])
     col_name = quote_ident(COLS[f"NUTS_NAME_{level}"])
     order_col = quote_ident(COLS[order_by]) if order_by else col_name
@@ -141,18 +157,18 @@ def fetch_nuts_level(
 
     return dset, utils.process_nuts_names(dset[COLS[f"NUTS_NAME_{level}"]].tolist())
 
-
+@st.cache_data
 def get_transactions_number(
-    con: duckdb.DuckDBPyConnection, where_clause: str, params: list[str]
+    where_clause: str, params: list[str]
 ) -> int:
     """Get the number of transactions matching the given WHERE clause.
     Args:
-        con (duckdb.DuckDBPyConnection): A DuckDB connection with the data view created.
-        where_clause (str): The SQL WHERE clause (without the "WHERE" keyword).
+        where_clause (str): The SQL WHERE clause.
         params (list[str]): The list of parameters for the SQL query.
     Returns:
         int: The number of transactions matching the WHERE clause.
     """
+    con = get_con()
     row = con.execute(
         f"SELECT COUNT(*) FROM data WHERE {where_clause}",
         params,
@@ -161,19 +177,18 @@ def get_transactions_number(
 
     return row[0]
 
-
+@st.cache_data
 def get_suppliers_number(
-    con: duckdb.DuckDBPyConnection, where_clause: str, params: list[str]
+    where_clause: str, params: list[str]
 ) -> int:
     """Get the number of suppliers matching the given WHERE clause.
     Args:
-        con (duckdb.DuckDBPyConnection): A DuckDB connection with the data view created.
-        where_clause (str): The SQL WHERE clause (without the "WHERE" keyword).
+        where_clause (str): The SQL WHERE clause.
         params (list[str]): The list of parameters for the SQL query.
     Returns:
         int: The number of suppliers matching the WHERE clause.
     """
-
+    con = get_con()
     row = con.execute(
         f"SELECT COUNT(DISTINCT {quote_ident(COLS['SUPPLIER'])}) FROM data WHERE {where_clause}",
         params,
@@ -182,16 +197,16 @@ def get_suppliers_number(
 
     return row[0]
 
-
-def get_total_amount(con: duckdb.DuckDBPyConnection, where_clause: str, params: list[str]) -> float:
+@st.cache_data
+def get_total_amount(where_clause: str, params: list[str]) -> float:
     """Get the total amount matching the given WHERE clause.
     Args:
-        con (duckdb.DuckDBPyConnection): A DuckDB connection with the data view created.
-        where_clause (str): The SQL WHERE clause (without the "WHERE" keyword).
+        where_clause (str): The SQL WHERE clause.
         params (list[str]): The list of parameters for the SQL query.
     Returns:
         float: The total amount matching the WHERE clause.
     """
+    con = get_con()
     row = con.execute(
         f"SELECT SUM({quote_ident(COLS['AMOUNT'])}) FROM data WHERE {where_clause}",
         params,
@@ -200,19 +215,18 @@ def get_total_amount(con: duckdb.DuckDBPyConnection, where_clause: str, params: 
 
     return row[0]
 
-
-def get_raw_data(
-    con: duckdb.DuckDBPyConnection, where_clause: str, params: list[str]
+@st.cache_data
+def get_raw_data( where_clause: str, params: list[str]
 ) -> pd.DataFrame:
     """Get the raw data matching the given WHERE clause, limited to the number of records
     specified in the state.
     Args:
-        con (duckdb.DuckDBPyConnection): A DuckDB connection with the data view created.
         where_clause (str): The SQL WHERE clause (without the "WHERE" keyword).
         params (list[str]): The list of parameters for the SQL query.
     Returns:
         pd.DataFrame: The raw data matching the WHERE clause.
     """
+    con = get_con()
     dset = con.execute(
         f"""
         SELECT {COLUMNS_TO_DISPLAY_SQL}

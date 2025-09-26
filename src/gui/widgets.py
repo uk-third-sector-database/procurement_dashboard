@@ -2,17 +2,17 @@
 
 from types import SimpleNamespace
 
-import duckdb
 import streamlit as st
 
-import gui.db as db
+from gui import db
 from gui.content import TEXT, WIDGETS
 from utilities.columns import COLS, COLS_SQL, quote_ident
 
 _state = st.session_state
 
 WIDGET_KEYS = {
-    "RECORDS_NUMBER": "input_records_number",
+    "TRANSACTIONS_NUMBER": "input_transactions_number",
+    "SUPPLIERS_NUMBER": "input_suppliers_number",
     "SOURCE": "multiselect_source",
     "PAYMENT_DATE_RANGE": "input_payment_date_range",
     "IS_REMOVED": "selectbox_is_removed",
@@ -31,6 +31,11 @@ WIDGET_KEYS = {
             3: "checkbox_all_nuts_name_3",
         },
     },
+    "SUPPLIERS_RANKING": "radio_suppliers_ranking",
+    "TIMECOURSES_DATA": "radio_timecourses_data",
+    "TIMECOURSES_FORMAT": "radio_timecourses_format",
+    "GEOGRAPHICAL_DISTRIBUTION_DATA": "radio_geographical_distribution_data",
+    "REGISTRIES_DATA": "radio_registries_data",
 }
 cols = SimpleNamespace(**COLS)
 cols_sql = SimpleNamespace(**COLS_SQL)
@@ -38,18 +43,19 @@ text = SimpleNamespace(**TEXT)
 widgets = SimpleNamespace(**WIDGETS)
 
 
-def records_number_selector() -> None:
-    """Render the records number selector widget in the sidebar."""
-    st.number_input(**widgets.RECORDS_NUMBER, key=WIDGET_KEYS["RECORDS_NUMBER"])
+def transactions_number_selector() -> None:
+    """Render the transactions number selector widget in the sidebar."""
+    st.number_input(**widgets.TRANSACTIONS_NUMBER, key=WIDGET_KEYS["TRANSACTIONS_NUMBER"])
 
 
-def source_selector(con: duckdb.DuckDBPyConnection) -> None:
-    """Render the source selector widget in the sidebar. Stops the app if no source is selected.
+def suppliers_number_selector() -> None:
+    """Render the suppliers number selector widget in the sidebar."""
+    st.number_input(**widgets.SUPPLIERS_NUMBER, key=WIDGET_KEYS["SUPPLIERS_NUMBER"])
 
-    Args:
-        con (duckdb.DuckDBPyConnection): A DuckDB connection with the data view created.
-    """
-    sources = db.fetch_distinct_values(con, cols.SOURCE)
+
+def source_selector() -> None:
+    """Render the source selector widget in the sidebar. Stops the app if no source is selected."""
+    sources = db.fetch_distinct_values(cols.SOURCE)
     st.sidebar.multiselect(
         **widgets.SOURCES, options=sources, default=sources, key=WIDGET_KEYS["SOURCE"]
     )
@@ -58,13 +64,11 @@ def source_selector(con: duckdb.DuckDBPyConnection) -> None:
         st.stop()
 
 
-def payment_date_range_selector(con: duckdb.DuckDBPyConnection) -> None:
+def payment_date_range_selector() -> None:
     """Render the payment date range selector widget in the sidebar.
-        Stops the app if the date range is incomplete or invalid.
-    Args:
-        con (duckdb.DuckDBPyConnection): A DuckDB connection with the data view created.
+    Stops the app if the date range is incomplete or invalid.
     """
-    dmin, dmax = db.fetch_date_range(con, quote_ident(cols.PAYMENT_DATE))
+    dmin, dmax = db.fetch_date_range(quote_ident(cols.PAYMENT_DATE))
     if WIDGET_KEYS["PAYMENT_DATE_RANGE"] not in _state:
         _state[WIDGET_KEYS["PAYMENT_DATE_RANGE"]] = (dmin, dmax)
     dcols = st.sidebar.columns([7, 1], vertical_alignment="bottom")
@@ -139,14 +143,13 @@ def assign_state_nuts_keys(level: int) -> None:
         _state[WIDGET_KEYS["NUTS_NAMES"]["ALL"][level]] = False
 
 
-def nuts_names_selector(con: duckdb.DuckDBPyConnection, level: int) -> None:
+def nuts_names_selector(level: int) -> None:
     """Render the NUTS names selector widget in the sidebar.
     Args:
-        con (duckdb.DuckDBPyConnection): A DuckDB connection with the data view created.
         level (int): The NUTS level (1, 2, or 3).
     """
 
-    fetch_nuts_for_level(con, level)
+    fetch_nuts_for_level(level)
 
     dcols = st.sidebar.columns([0.75, 0.25], gap=None, vertical_alignment="center")
     dcols[0].text(f"NUTS Level {level}")
@@ -188,23 +191,21 @@ def init_nuts_state_vars() -> None:
     _state["IDS_NUTS"] = {1: [], 2: [], 3: []}
 
 
-def fetch_nuts_for_level(con: duckdb.DuckDBPyConnection, level: int):
+def fetch_nuts_for_level(level: int):
     """Fetch NUTS names and IDs for a given level and update session state.
 
     Args:
-        con (duckdb.DuckDBPyConnection): A DuckDB connection with the data view created.
         level (int): The NUTS level (1, 2, or 3).
     """
     match level:
         case 1:
             _state["DSET_NUTS"][level], _state["NAMES_NUTS"][level] = db.fetch_nuts_level(
-                con, level=level, where=None, params=[]
+                level=level, where=None, params=[]
             )
         case 2:
             placeholders = ", ".join("?" for _ in _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]])
             where_clause = f"{quote_ident(COLS['NUTS_NAME_1'])} IN ({placeholders})"
             _state["DSET_NUTS"][level], _state["NAMES_NUTS"][level] = db.fetch_nuts_level(
-                con=con,
                 level=2,
                 where=where_clause,
                 params=_state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]],
@@ -214,7 +215,6 @@ def fetch_nuts_for_level(con: duckdb.DuckDBPyConnection, level: int):
             placeholders = ", ".join("?" for _ in _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][2]])
             where_clause = f"{quote_ident(COLS['NUTS_NAME_2'])} IN ({placeholders})"
             _state["DSET_NUTS"][level], _state["NAMES_NUTS"][level] = db.fetch_nuts_level(
-                con=con,
                 level=3,
                 where=where_clause,
                 params=_state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][2]],
@@ -235,7 +235,7 @@ def reset_is_spine_state_vars() -> None:
 
 
 def build_where_clause_and_params() -> tuple[str, list]:
-    """Build the SQL WHERE clause and parameters for the sql query 
+    """Build the SQL WHERE clause and parameters for the sql query
         based on the current state of the widgets.
     Returns:
         tuple[str, list]: A tuple containing the WHERE clause string and a list of parameters.
@@ -286,3 +286,86 @@ def build_where_clause_and_params() -> tuple[str, list]:
     where_clause = " AND ".join(clauses) if clauses else "TRUE"
 
     return where_clause, params
+
+
+def suppliers_ranking_selector() -> None:
+    """Render the suppliers ranking selector widget in the sidebar."""
+    st.radio(
+        **widgets.SUPPLIERS_RANKING,
+        options=[cols.PAYMENTS, cols.VALUE],
+        index=0,
+        horizontal=True,
+        key=WIDGET_KEYS["SUPPLIERS_RANKING"],
+    )
+
+
+def timecourses_data_selector(options) -> None:
+    """Render the timecourses data selector widget in the sidebar.
+    Args:
+        options (list): List of options to display in the selector.
+    """
+    st.radio(
+        **WIDGETS["TIMECOURSES"]["DATA"],
+        options=options,
+        index=0,
+        horizontal=True,
+        key=WIDGET_KEYS["TIMECOURSES_DATA"],
+    )
+
+
+def timecourses_format_selector(options) -> None:
+    """Render the timecourses format selector widget in the sidebar.
+    Args:
+        options (list): List of options to display in the selector.
+    """
+    st.radio(
+        **WIDGETS["TIMECOURSES"]["FORMAT"],
+        options=options,
+        index=0,
+        horizontal=True,
+        key=WIDGET_KEYS["TIMECOURSES_FORMAT"],
+    )
+
+
+def geographical_distribution_data_selector(options) -> None:
+    """Render the geographical distribution data selector widget in the sidebar.
+    Args:
+        options (list): List of options to display in the selector.
+    """
+    st.radio(
+        **WIDGETS["GEOGRAPHICAL_DISTRIBUTION"]["DATA"],
+        options=options,
+        index=0,
+        horizontal=True,
+        key=WIDGET_KEYS["GEOGRAPHICAL_DISTRIBUTION_DATA"],
+    )
+
+
+def popover_dataset(label, dset) -> None:
+    """Render a popover with the given label and dataset.
+
+    Args:
+        label (str): The label for the popover.
+        dset (pd.DataFrame): The dataset to display in the popover.
+    """
+    with st.popover(label, width="stretch"):
+        st.text("")
+        st.dataframe(
+            dset,
+            use_container_width=True,
+            hide_index=False,
+        )
+
+
+def registries_distribution_data_selector(options) -> None:
+    """Render the registries distribution data selector widget in the sidebar.
+    Args:
+        options (list): List of options to display in the selector.
+    """
+    st.radio(
+        **WIDGETS["REGISTRIES"]["DATA"],
+        options=options,
+        index=0,
+        horizontal=True,
+        key=WIDGET_KEYS["REGISTRIES_DATA"],
+    )
