@@ -238,6 +238,8 @@ def display_geographical_distribution(where_clause: str, params: list[str]) -> N
     nuts_display = nuts.loc[nuts.LEVL_CODE == nuts_level]
     column_nuts_id = f"NUTS ID {nuts_level}"
     sql = f"""
+
+
             WITH filtered AS (
                 SELECT {quote_ident(column_nuts_id)},
                         {COLS_SQL["AMOUNT"]}
@@ -258,6 +260,30 @@ def display_geographical_distribution(where_clause: str, params: list[str]) -> N
         """
     dset = db.run_query(sql, params)
 
+    sql = f"""
+
+
+            WITH filtered AS (
+                SELECT {quote_ident(column_nuts_id)},
+                        {COLS_SQL["AMOUNT"]}
+            FROM data
+            WHERE {where_clause}
+            ),
+            agg AS (
+                SELECT
+                    {quote_ident(column_nuts_id)},
+                    SUM({COLS_SQL["AMOUNT"]}) AS {COLS_SQL["TOTAL_VALUE_PAYMENTS"]},
+                    COUNT(*) AS {COLS_SQL["TOTAL_PAYMENTS"]}
+                FROM filtered
+                WHERE {quote_ident(column_nuts_id)} IS NULL
+                GROUP BY {quote_ident(column_nuts_id)}
+            )
+            SELECT *
+            FROM agg
+        """
+
+    dset_no_nuts = db.run_query(sql, params)
+
     # merge nuts_display with dset_nuts on NUTS_ID_1
     nuts_display = nuts_display.merge(dset, how="left", left_on="NUTS_ID", right_on=column_nuts_id)
     nuts_display[COLS["TOTAL_VALUE_PAYMENTS"]] = nuts_display[COLS["TOTAL_VALUE_PAYMENTS"]].fillna(
@@ -265,16 +291,11 @@ def display_geographical_distribution(where_clause: str, params: list[str]) -> N
     )
     nuts_display[COLS["TOTAL_PAYMENTS"]] = nuts_display[COLS["TOTAL_PAYMENTS"]].fillna(0)
     nuts_display.set_index("NUTS_ID", inplace=True)
-
-    # col_sels = st.columns(2)
-    # with col_sels[0]:
-    #     wd.geographical_distribution_data_selector(
-    #         [COLS["TOTAL_PAYMENTS"], COLS["TOTAL_VALUE_PAYMENTS"]]
-    #     )
     with col_sels[1]:
         wd.popover_dataset(
             WIDGETS["GEOGRAPHICAL_DISTRIBUTION"]["LEGEND"]["label"], nuts_display[["NUTS_NAME"]]
         )
+
     cols_maps = st.columns(2)
     with cols_maps[0]:
         fig = px.choropleth(
@@ -310,6 +331,13 @@ def display_geographical_distribution(where_clause: str, params: list[str]) -> N
             use_container_width=True,
             hide_index=False,
         )
+        if not dset_no_nuts.empty:
+            st.text(TEXT["TITLE_DATA_NO_NUTS_ID"])
+            st.dataframe(
+                dset_no_nuts.style.format(COLUMNS_TO_DISPLAY_STYLES),
+                use_container_width=False,
+                hide_index=True,
+            )
 
 
 def display_registry_distribution(where_clause: str, params: list[str]) -> None:

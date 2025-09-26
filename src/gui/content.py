@@ -10,6 +10,7 @@ TEXT = {
     "ERROR_NO_SOURCE_SELECTED": f"{EMOJIS['WARNING']}Please select at least one source.",
     "ERROR_INCOMPLETE_SELECTIONS": f"{EMOJIS['WARNING']} Please complete all selections.",
     "ERROR_NO_DATA": f"{EMOJIS['WARNING']}No data matches the selected filters.",
+    "TITLE_DATA_NO_NUTS_ID": "Transactions with no NUTS code",
 }
 
 WIDGETS = {
