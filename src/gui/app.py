@@ -80,8 +80,11 @@ where_clause, params = wd.build_where_clause_and_params()
 
 vis.display_top_metrics(where_clause, params)
 
+titles = widgets.VIEW_TABS["COMMON"].copy()
+if _state[wd.WIDGET_KEYS["IS_SPINE"]] is True:
+    titles += widgets.VIEW_TABS["SPINE"]
 tabs_views = st.tabs(
-    widgets.VIEW_TABS["titles"]
+    titles
 )
 
 with tabs_views[0]:
@@ -188,6 +191,8 @@ with tabs_views[2]:
 
     st.plotly_chart(fig, use_container_width=True)
 
+if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not True:
+    st.stop()
 with tabs_views[3]:
     if not _state[wd.WIDGET_KEYS["IS_SPINE"]] or not all(
         [

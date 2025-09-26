@@ -49,12 +49,13 @@ WIDGETS = {
         },
     },
     "VIEW_TABS": {
-        "titles": [
+        "COMMON": [
             "Raw data",
             "Supplier distributions",
             "Timecourses",
-            "Geographical distributions",
-            "Registry distributions",
+        ],
+        "SPINE": ["Geographical distributions",
+            "Registry distributions"
         ]
     }
 }
