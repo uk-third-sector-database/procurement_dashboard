@@ -11,7 +11,8 @@ from utilities.columns import COLS, COLS_SQL, quote_ident
 _state = st.session_state
 
 WIDGET_KEYS = {
-    "RECORDS_NUMBER": "input_records_number",
+    "TRANSACTIONS_NUMBER": "input_transactions_number",
+    "SUPPLIERS_NUMBER": "input_suppliers_number",
     "SOURCE": "multiselect_source",
     "PAYMENT_DATE_RANGE": "input_payment_date_range",
     "IS_REMOVED": "selectbox_is_removed",
@@ -30,6 +31,7 @@ WIDGET_KEYS = {
             3: "checkbox_all_nuts_name_3",
         },
     },
+    "SUPPLIERS_RANKING": "radio_suppliers_ranking",
 }
 cols = SimpleNamespace(**COLS)
 cols_sql = SimpleNamespace(**COLS_SQL)
@@ -37,14 +39,18 @@ text = SimpleNamespace(**TEXT)
 widgets = SimpleNamespace(**WIDGETS)
 
 
-def records_number_selector() -> None:
-    """Render the records number selector widget in the sidebar."""
-    st.number_input(**widgets.RECORDS_NUMBER, key=WIDGET_KEYS["RECORDS_NUMBER"])
+def transactions_number_selector() -> None:
+    """Render the transactions number selector widget in the sidebar."""
+    st.number_input(**widgets.TRANSACTIONS_NUMBER, key=WIDGET_KEYS["TRANSACTIONS_NUMBER"])
+
+
+def suppliers_number_selector() -> None:
+    """Render the suppliers number selector widget in the sidebar."""
+    st.number_input(**widgets.SUPPLIERS_NUMBER, key=WIDGET_KEYS["SUPPLIERS_NUMBER"])
 
 
 def source_selector() -> None:
-    """Render the source selector widget in the sidebar. Stops the app if no source is selected.
-    """
+    """Render the source selector widget in the sidebar. Stops the app if no source is selected."""
     sources = db.fetch_distinct_values(cols.SOURCE)
     st.sidebar.multiselect(
         **widgets.SOURCES, options=sources, default=sources, key=WIDGET_KEYS["SOURCE"]
@@ -56,7 +62,7 @@ def source_selector() -> None:
 
 def payment_date_range_selector() -> None:
     """Render the payment date range selector widget in the sidebar.
-        Stops the app if the date range is incomplete or invalid.
+    Stops the app if the date range is incomplete or invalid.
     """
     dmin, dmax = db.fetch_date_range(quote_ident(cols.PAYMENT_DATE))
     if WIDGET_KEYS["PAYMENT_DATE_RANGE"] not in _state:
@@ -225,7 +231,7 @@ def reset_is_spine_state_vars() -> None:
 
 
 def build_where_clause_and_params() -> tuple[str, list]:
-    """Build the SQL WHERE clause and parameters for the sql query 
+    """Build the SQL WHERE clause and parameters for the sql query
         based on the current state of the widgets.
     Returns:
         tuple[str, list]: A tuple containing the WHERE clause string and a list of parameters.
@@ -276,3 +282,14 @@ def build_where_clause_and_params() -> tuple[str, list]:
     where_clause = " AND ".join(clauses) if clauses else "TRUE"
 
     return where_clause, params
+
+
+def suppliers_ranking_selector() -> None:
+    """Render the suppliers ranking selector widget in the sidebar."""
+    st.radio(
+        **widgets.SUPPLIERS_RANKING,
+        options=[cols.PAYMENTS, cols.VALUE],
+        index=0,
+        horizontal=True,
+        key=WIDGET_KEYS["SUPPLIERS_RANKING"],
+    )

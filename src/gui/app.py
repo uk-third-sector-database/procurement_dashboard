@@ -16,7 +16,6 @@ from utilities import shared
 from utilities.columns import (
     COLS,
     COLS_SQL,
-    COLUMNS_TO_DISPLAY_STYLES,
     REGISTRIES,
     quote_ident,
 )
@@ -83,72 +82,13 @@ vis.display_top_metrics(where_clause, params)
 titles = widgets.VIEW_TABS["COMMON"].copy()
 if _state[wd.WIDGET_KEYS["IS_SPINE"]] is True:
     titles += widgets.VIEW_TABS["SPINE"]
-tabs_views = st.tabs(
-    titles
-)
+tabs_views = st.tabs(titles)
 
 with tabs_views[0]:
     vis.display_raw_data(where_clause, params)
 
 with tabs_views[1]:
-    tabs_suppliers = st.tabs(
-        [f"Ranked by {cols.TOTAL_VALUE_PAYMENTS}", f"Ranked by {cols.TOTAL_PAYMENTS}"]
-    )
-    with tabs_suppliers[0]:
-        dset_suppliers = con.execute(
-            f"""
-                WITH filtered AS (
-                    SELECT {cols_sql.SUPPLIER},
-                            {cols_sql.AMOUNT}
-                FROM data
-                WHERE {where_clause}
-                ),
-                agg AS (
-                    SELECT
-                        {cols_sql.SUPPLIER},
-                        SUM({cols_sql.AMOUNT}) AS {cols_sql.TOTAL_VALUE_PAYMENTS},
-                        COUNT(*) AS {cols_sql.TOTAL_PAYMENTS}
-                    FROM filtered
-                    GROUP BY {cols_sql.SUPPLIER}
-                )
-                SELECT *
-                FROM agg
-                ORDER BY {cols_sql.TOTAL_VALUE_PAYMENTS} DESC NULLS LAST
-                LIMIT ?
-            """,
-            params + [_state[wd.WIDGET_KEYS["RECORDS_NUMBER"]]],
-        ).fetchdf()
-
-        dset_styled = dset_suppliers.style.format(COLUMNS_TO_DISPLAY_STYLES)
-        st.dataframe(dset_styled, use_container_width=True, hide_index=True)
-
-    with tabs_suppliers[1]:
-        dset_suppliers = con.execute(
-            f"""
-                WITH filtered AS (
-                    SELECT {cols_sql.SUPPLIER},
-                           {cols_sql.AMOUNT}
-                FROM data
-                WHERE {where_clause}
-                ),
-                agg AS (
-                    SELECT
-                        {cols_sql.SUPPLIER},
-                        SUM({cols_sql.AMOUNT}) AS {cols_sql.TOTAL_VALUE_PAYMENTS},
-                        COUNT(*) AS {cols_sql.TOTAL_PAYMENTS}
-                    FROM filtered
-                    GROUP BY {cols_sql.SUPPLIER}
-                )
-                SELECT *
-                FROM agg
-                ORDER BY {cols_sql.TOTAL_PAYMENTS} DESC NULLS LAST
-                LIMIT ?
-            """,
-            params + [_state[wd.WIDGET_KEYS["RECORDS_NUMBER"]]],
-        ).fetchdf()
-
-        dset_styled = dset_suppliers.style.format(COLUMNS_TO_DISPLAY_STYLES)
-        st.dataframe(dset_styled, use_container_width=True, hide_index=True)
+    vis.display_suppliers(where_clause, params)
 
 with tabs_views[2]:
     COLUMN_DATE = cols.DATE

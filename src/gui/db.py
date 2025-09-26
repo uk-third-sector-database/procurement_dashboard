@@ -30,6 +30,18 @@ def get_con() -> duckdb.DuckDBPyConnection:
     return con
 
 
+def run_query(sql: str, params: list[Any] | None = None) -> pd.DataFrame:
+    """Run a SQL query and return the results as a DataFrame.
+
+    Args:
+        sql (str): The SQL query to run.
+        params (list[Any] | None): Optional list of parameters for the SQL query.
+
+    Returns:
+        pd.DataFrame: The results of the query as a DataFrame.
+    """
+    return get_con().execute(sql, params).fetchdf()
+
 def quote_ident(name: str) -> str:
     """
     Safely quote an identifier (column/table/view name) for SQL in DuckDB.
