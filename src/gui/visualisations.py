@@ -77,6 +77,7 @@ def display_top_metrics(where_clause: str, params: list[str]):
                 st.metric(**metric_content["ALL"], value=f"{total_amount:,}")
                 st.metric(**metric_content["SPINE"], value=f"{total_amount_spine:,}")
 
+
 def display_raw_data(where_clause: str, params: list[str]) -> None:
     """Retrieve and display the raw data in a table.
 
@@ -202,22 +203,26 @@ def display_geographical_distribution(where_clause: str, params: list[str]) -> N
     """
     gpd = db.get_shape_file()
 
-    ids_1 = _state["IDS_NUTS"][1] or []
-    ids_2 = _state["IDS_NUTS"][2] or []
-    ids_3 = _state["IDS_NUTS"][3] or []
+    if _state[wd.WIDGET_KEYS["FILTER_NUTS"]] is True:
+        ids_1 = _state["IDS_NUTS"][1] or []
+        ids_2 = _state["IDS_NUTS"][2] or []
+        ids_3 = _state["IDS_NUTS"][3] or []
 
-    mask = (
-        (gpd["LEVL_CODE"].eq(1) & gpd["NUTS_ID"].isin(ids_1))
-        | (gpd["LEVL_CODE"].eq(2) & gpd["NUTS_ID"].isin(ids_2))
-        | (gpd["LEVL_CODE"].eq(3) & gpd["NUTS_ID"].isin(ids_3))
-    )
+        mask = (
+            (gpd["LEVL_CODE"].eq(1) & gpd["NUTS_ID"].isin(ids_1))
+            | (gpd["LEVL_CODE"].eq(2) & gpd["NUTS_ID"].isin(ids_2))
+            | (gpd["LEVL_CODE"].eq(3) & gpd["NUTS_ID"].isin(ids_3))
+        )
 
-    nuts = gpd[mask].copy()
+        nuts = gpd[mask].copy()
+        # retrieve the nuts level 3 data for the selected NUTS
+        nuts_level = 3
+    else:
+        # select data from UK
+        nuts = gpd[gpd["CNTR_CODE"] == "UK"].copy()
+        nuts_level = 1
 
-    # retrieve the nuts level 3 data
-    nuts_level = 3
     nuts_display = nuts.loc[nuts.LEVL_CODE == nuts_level]
-
     column_nuts_id = f"NUTS ID {nuts_level}"
     sql = f"""
             WITH filtered AS (

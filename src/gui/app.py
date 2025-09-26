@@ -49,23 +49,25 @@ if _state[wd.WIDGET_KEYS["IS_SPINE"]] is True:
     # manual and other match selectors
     wd.is_manual_match_selector()
     wd.is_other_match_selector()
+    wd.apply_nuts_filter_selector()
 
-    # NUTS selectors
-    wd.nuts_names_selector(1)
-    if _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]]:
-        wd.nuts_names_selector(2)
+    if _state[wd.WIDGET_KEYS["FILTER_NUTS"]] is True:
+        # NUTS selectors
+        wd.nuts_names_selector(1)
+        if _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]]:
+            wd.nuts_names_selector(2)
 
-        if _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][2]]:
-            wd.nuts_names_selector(3)
-            if not _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]]:
+            if _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][2]]:
+                wd.nuts_names_selector(3)
+                if not _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]]:
+                    st.warning(text.ERROR_INCOMPLETE_SELECTIONS)
+                    st.stop()
+            else:
                 st.warning(text.ERROR_INCOMPLETE_SELECTIONS)
                 st.stop()
         else:
             st.warning(text.ERROR_INCOMPLETE_SELECTIONS)
             st.stop()
-    else:
-        st.warning(text.ERROR_INCOMPLETE_SELECTIONS)
-        st.stop()
 else:
     wd.reset_is_spine_state_vars()
 

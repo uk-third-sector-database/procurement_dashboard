@@ -19,6 +19,7 @@ WIDGET_KEYS = {
     "IS_SPINE": "selectbox_is_spine",
     "IS_MANUAL_MATCH": "selectbox_is_manual_match",
     "IS_OTHER_MATCH": "selectbox_is_other_match",
+    "FILTER_NUTS": "checkbox_filter_nuts",
     "NUTS_NAMES": {
         "SELECTION": {
             1: "multiselect_nuts_name_1",
@@ -134,6 +135,9 @@ def is_other_match_selector() -> None:
         key=WIDGET_KEYS["IS_OTHER_MATCH"],
     )
 
+def apply_nuts_filter_selector() -> None:
+    """Render the apply NUTS filter checkbox in the sidebar."""
+    st.sidebar.checkbox(**widgets.FILTER_NUTS, key=WIDGET_KEYS["FILTER_NUTS"])
 
 def assign_state_nuts_keys(level: int) -> None:
     """Ensure the session state keys for NUTS level selectors exist."""
