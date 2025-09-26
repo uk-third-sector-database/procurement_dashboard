@@ -32,6 +32,8 @@ WIDGET_KEYS = {
         },
     },
     "SUPPLIERS_RANKING": "radio_suppliers_ranking",
+    "TIMECOURSES_DATA": "radio_timecourses_data",
+    "TIMECOURSES_FORMAT": "radio_timecourses_format",
 }
 cols = SimpleNamespace(**COLS)
 cols_sql = SimpleNamespace(**COLS_SQL)
@@ -292,4 +294,32 @@ def suppliers_ranking_selector() -> None:
         index=0,
         horizontal=True,
         key=WIDGET_KEYS["SUPPLIERS_RANKING"],
+    )
+
+
+def timecourses_data_selector(options) -> None:
+    """Render the timecourses data selector widget in the sidebar.
+    Args:
+        options (list): List of options to display in the selector.
+    """
+    st.radio(
+        **WIDGETS["TIMECOURSES"]["DATA"],
+        options=options,
+        index=0,
+        horizontal=True,
+        key=WIDGET_KEYS["TIMECOURSES_DATA"],
+    )
+
+
+def timecourses_format_selector(options) -> None:
+    """Render the timecourses format selector widget in the sidebar.
+    Args:
+        options (list): List of options to display in the selector.
+    """
+    st.radio(
+        **WIDGETS["TIMECOURSES"]["FORMAT"],
+        options=options,
+        index=0,
+        horizontal=True,
+        key=WIDGET_KEYS["TIMECOURSES_FORMAT"],
     )

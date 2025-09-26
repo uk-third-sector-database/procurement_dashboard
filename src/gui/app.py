@@ -91,45 +91,7 @@ with tabs_views[1]:
     vis.display_suppliers(where_clause, params)
 
 with tabs_views[2]:
-    COLUMN_DATE = cols.DATE
-    COLUMN_TRANSACTIONS = cols.PAYMENTS
-    COLUMN_VALUE = cols.VALUE
-    dset_tcourse_transactions = con.execute(
-        f"""
-        SELECT
-            strftime({cols_sql.PAYMENT_DATE}, '%Y-%m') AS {quote_ident(COLUMN_DATE)},
-            COUNT(*) AS {quote_ident(COLUMN_TRANSACTIONS)},
-            SUM({cols_sql.AMOUNT}) AS {quote_ident(COLUMN_VALUE)}
-        FROM data
-        WHERE {where_clause}
-        GROUP BY {quote_ident(COLUMN_DATE)}
-        ORDER BY {quote_ident(COLUMN_DATE)}
-        """,
-        params,
-    ).fetchdf()
-
-    dset_tcourse_transactions[COLUMN_DATE] = pd.to_datetime(dset_tcourse_transactions[COLUMN_DATE])
-
-    column_to_plot = st.radio(
-        "Choose what to plot",
-        options=[COLUMN_TRANSACTIONS, COLUMN_VALUE],
-        index=0,
-        horizontal=True,
-        key="radio_column_to_plot_timecourse",
-    )
-
-    fig = px.bar(
-        dset_tcourse_transactions,
-        x=COLUMN_DATE,
-        y=column_to_plot,
-        labels={COLUMN_DATE: ""},
-        title="",
-    )
-    fig.update_layout(margin=dict(l=0, r=0, t=40, b=0))
-    fig.update_yaxes(tickformat=",")
-    fig.update_xaxes(dtick="M12", tickformat="%b %Y", ticklabelmode="period")
-
-    st.plotly_chart(fig, use_container_width=True)
+    vis.display_timecourses(where_clause, params)
 
 if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not True:
     st.stop()

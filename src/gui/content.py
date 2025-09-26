@@ -69,4 +69,13 @@ WIDGETS = {
     "SUPPLIERS_RANKING": {
         "label": "Rank suppliers by"
     },
+    "TIMECOURSES": {
+        "DATA": {
+            "label": "Choose what to plot",
+        },
+        "FORMAT": {
+            "label": "Choose how to plot"
+        },
+        "FORMATS": ["Bar chart", "Line chart"]
+    }
 }

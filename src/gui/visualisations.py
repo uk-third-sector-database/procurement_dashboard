@@ -1,12 +1,13 @@
 """Module for visualisations in the app."""
 
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 
 import gui.widgets as wd
 from gui import db
 from gui.content import TEXT, WIDGETS
-from utilities.columns import COLS, COLS_SQL, COLUMNS_DATE, COLUMNS_TO_DISPLAY_STYLES
+from utilities.columns import COLS, COLS_SQL, COLUMNS_DATE, COLUMNS_TO_DISPLAY_STYLES, quote_ident
 
 _state = st.session_state
 
@@ -120,3 +121,54 @@ def display_suppliers(where_clause: str, params: list[str]) -> None:
         use_container_width=False,
         hide_index=True,
     )
+
+
+def display_timecourses(where_clause: str, params: list[str]) -> None:
+    """Retrieve and display the timecourses in a bar chart.
+    Args:
+        where_clause (str): The SQL WHERE clause.
+        params (list[str]): The list of parameters for the SQL query.
+    """
+    column_date = COLS["DATE"]
+    column_transactions = COLS["PAYMENTS"]
+    column_value = COLS["VALUE"]
+    sql = f"""
+        SELECT
+            strftime({quote_ident(COLS["PAYMENT_DATE"])}, '%Y-%m') AS {quote_ident(column_date)},
+            COUNT(*) AS {quote_ident(column_transactions)},
+            SUM({quote_ident(COLS["AMOUNT"])}) AS {quote_ident(column_value)}
+        FROM data
+        WHERE {where_clause}
+        GROUP BY {quote_ident(column_date)}
+        ORDER BY {quote_ident(column_date)}
+        """
+
+    dset = db.run_query(sql, params)
+    dset[column_date] = pd.to_datetime(dset[column_date])
+    sel_cols = st.columns(2)
+    with sel_cols[0]:
+        wd.timecourses_data_selector([column_transactions, column_value])
+    with sel_cols[1]:
+        wd.timecourses_format_selector(WIDGETS["TIMECOURSES"]["FORMATS"])
+
+    if _state[wd.WIDGET_KEYS["TIMECOURSES_FORMAT"]] == WIDGETS["TIMECOURSES"]["FORMATS"][0]:
+        fig = px.bar(
+            dset,
+            x=column_date,
+            y=_state[wd.WIDGET_KEYS["TIMECOURSES_DATA"]],
+            labels={column_date: ""},
+            title="",
+        )
+    else:
+        fig = px.line(
+            dset,
+            x=column_date,
+            y=_state[wd.WIDGET_KEYS["TIMECOURSES_DATA"]],
+            labels={column_date: ""},
+            title="",
+        )
+    fig.update_layout(margin=dict(l=0, r=0, t=40, b=0))
+    fig.update_yaxes(tickformat=",")
+    fig.update_xaxes(dtick="M12", tickformat="%b %Y", ticklabelmode="period")
+
+    st.plotly_chart(fig, use_container_width=True)
