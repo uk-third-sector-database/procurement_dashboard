@@ -38,30 +38,44 @@ def display_top_metrics(where_clause: str, params: list[str]):
         n_suppliers_spine = db.get_suppliers_number(where_clause_spine, params)
         n_transactions_spine = db.get_transactions_number(where_clause_spine, params)
         total_amount_spine = db.get_total_amount(where_clause_spine, params)
+    else:
+        n_suppliers_spine = None
+        n_transactions_spine = None
+        total_amount_spine = None
 
     cols_metrics = st.columns(3)
 
     with cols_metrics[0].container(border=True):
         metric_content = WIDGETS["METRICS"]["SUPPLIERS"]
-        if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not True:
-            st.metric(**metric_content["ALL"], value=f"{n_suppliers:,}")
-            st.metric(**metric_content["SPINE"], value=f"{n_suppliers_spine:,}")
-        else:
-            st.metric(**metric_content["SPINE"], value=f"{n_suppliers:,}")
+        match _state[wd.WIDGET_KEYS["IS_SPINE"]]:
+            case True:
+                st.metric(**metric_content["SPINE"], value=f"{n_suppliers:,}")
+            case False:
+                st.metric(**metric_content["NON_SPINE"], value=f"{n_suppliers:,}")
+            case None:
+                st.metric(**metric_content["ALL"], value=f"{n_suppliers:,}")
+                st.metric(**metric_content["SPINE"], value=f"{n_suppliers_spine:,}")
+
     with cols_metrics[1].container(border=True):
         metric_content = WIDGETS["METRICS"]["TRANSACTIONS"]
-        if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not True:
-            st.metric(**metric_content["ALL"], value=f"{n_transactions:,}")
-            st.metric(**metric_content["SPINE"], value=f"{n_transactions_spine:,}")
-        else:
-            st.metric(**metric_content["SPINE"], value=f"{n_transactions:,}")
+        match _state[wd.WIDGET_KEYS["IS_SPINE"]]:
+            case True:
+                st.metric(**metric_content["SPINE"], value=f"{n_transactions:,}")
+            case False:
+                st.metric(**metric_content["NON_SPINE"], value=f"{n_transactions:,}")
+            case None:
+                st.metric(**metric_content["ALL"], value=f"{n_transactions:,}")
+                st.metric(**metric_content["SPINE"], value=f"{n_transactions_spine:,}")
     with cols_metrics[2].container(border=True):
         metric_content = WIDGETS["METRICS"]["AMOUNT"]
-        if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not True:
-            st.metric(**metric_content["ALL"], value=f"{total_amount:,.0f}")
-            st.metric(**metric_content["SPINE"], value=f"{total_amount_spine:,.0f}")
-        else:
-            st.metric(**metric_content["SPINE"], value=f"{total_amount:,.0f}")
+        match _state[wd.WIDGET_KEYS["IS_SPINE"]]:
+            case True:
+                st.metric(**metric_content["SPINE"], value=f"{total_amount:,}")
+            case False:
+                st.metric(**metric_content["NON_SPINE"], value=f"{total_amount:,}")
+            case None:
+                st.metric(**metric_content["ALL"], value=f"{total_amount:,}")
+                st.metric(**metric_content["SPINE"], value=f"{total_amount_spine:,}")
 
 
 def display_raw_data(where_clause: str, params: list[str]) -> None:
@@ -188,25 +202,44 @@ def display_geographical_distribution(where_clause: str, params: list[str]) -> N
         params (list[str]): The list of parameters for the SQL query.
     """
     gpd = db.get_shape_file()
+    col_sels = st.columns(2, vertical_alignment="bottom")
 
-    ids_1 = _state["IDS_NUTS"][1] or []
-    ids_2 = _state["IDS_NUTS"][2] or []
-    ids_3 = _state["IDS_NUTS"][3] or []
+    if _state[wd.WIDGET_KEYS["FILTER_NUTS"]] is True:
+        ids_1 = _state["IDS_NUTS"][1] or []
+        ids_2 = _state["IDS_NUTS"][2] or []
+        ids_3 = _state["IDS_NUTS"][3] or []
 
-    mask = (
-        (gpd["LEVL_CODE"].eq(1) & gpd["NUTS_ID"].isin(ids_1))
-        | (gpd["LEVL_CODE"].eq(2) & gpd["NUTS_ID"].isin(ids_2))
-        | (gpd["LEVL_CODE"].eq(3) & gpd["NUTS_ID"].isin(ids_3))
-    )
+        mask = (
+            (gpd["LEVL_CODE"].eq(1) & gpd["NUTS_ID"].isin(ids_1))
+            | (gpd["LEVL_CODE"].eq(2) & gpd["NUTS_ID"].isin(ids_2))
+            | (gpd["LEVL_CODE"].eq(3) & gpd["NUTS_ID"].isin(ids_3))
+        )
 
-    nuts = gpd[mask].copy()
+        nuts = gpd[mask].copy()
+        # retrieve the nuts level 3 data for the selected NUTS
+        nuts_level = 3
+        with col_sels[0]:
+            wd.geographical_distribution_data_selector(
+                [COLS["TOTAL_PAYMENTS"], COLS["TOTAL_VALUE_PAYMENTS"]]
+            )
+    else:
+        # select data from UK
+        nuts = gpd[gpd["CNTR_CODE"] == "UK"].copy()
+        with col_sels[0]:
+            cols_refine = st.columns(2)
+            with cols_refine[0]:
+                wd.geographical_distribution_data_selector(
+                    [COLS["TOTAL_PAYMENTS"], COLS["TOTAL_VALUE_PAYMENTS"]]
+                )
+            with cols_refine[1]:
+                wd.nuts_level_selector()
+                nuts_level = _state[wd.WIDGET_KEYS["NUTS_LEVEL"]]
 
-    # retrieve the nuts level 3 data
-    nuts_level = 3
     nuts_display = nuts.loc[nuts.LEVL_CODE == nuts_level]
-
     column_nuts_id = f"NUTS ID {nuts_level}"
     sql = f"""
+
+
             WITH filtered AS (
                 SELECT {quote_ident(column_nuts_id)},
                         {COLS_SQL["AMOUNT"]}
@@ -227,6 +260,30 @@ def display_geographical_distribution(where_clause: str, params: list[str]) -> N
         """
     dset = db.run_query(sql, params)
 
+    sql = f"""
+
+
+            WITH filtered AS (
+                SELECT {quote_ident(column_nuts_id)},
+                        {COLS_SQL["AMOUNT"]}
+            FROM data
+            WHERE {where_clause}
+            ),
+            agg AS (
+                SELECT
+                    {quote_ident(column_nuts_id)},
+                    SUM({COLS_SQL["AMOUNT"]}) AS {COLS_SQL["TOTAL_VALUE_PAYMENTS"]},
+                    COUNT(*) AS {COLS_SQL["TOTAL_PAYMENTS"]}
+                FROM filtered
+                WHERE {quote_ident(column_nuts_id)} IS NULL
+                GROUP BY {quote_ident(column_nuts_id)}
+            )
+            SELECT *
+            FROM agg
+        """
+
+    dset_no_nuts = db.run_query(sql, params)
+
     # merge nuts_display with dset_nuts on NUTS_ID_1
     nuts_display = nuts_display.merge(dset, how="left", left_on="NUTS_ID", right_on=column_nuts_id)
     nuts_display[COLS["TOTAL_VALUE_PAYMENTS"]] = nuts_display[COLS["TOTAL_VALUE_PAYMENTS"]].fillna(
@@ -234,16 +291,11 @@ def display_geographical_distribution(where_clause: str, params: list[str]) -> N
     )
     nuts_display[COLS["TOTAL_PAYMENTS"]] = nuts_display[COLS["TOTAL_PAYMENTS"]].fillna(0)
     nuts_display.set_index("NUTS_ID", inplace=True)
-
-    col_sels = st.columns(2)
-    with col_sels[0]:
-        wd.geographical_distribution_data_selector(
-            [COLS["TOTAL_PAYMENTS"], COLS["TOTAL_VALUE_PAYMENTS"]]
-        )
     with col_sels[1]:
         wd.popover_dataset(
             WIDGETS["GEOGRAPHICAL_DISTRIBUTION"]["LEGEND"]["label"], nuts_display[["NUTS_NAME"]]
         )
+
     cols_maps = st.columns(2)
     with cols_maps[0]:
         fig = px.choropleth(
@@ -279,6 +331,13 @@ def display_geographical_distribution(where_clause: str, params: list[str]) -> N
             use_container_width=True,
             hide_index=False,
         )
+        if not dset_no_nuts.empty:
+            st.text(TEXT["TITLE_DATA_NO_NUTS_ID"])
+            st.dataframe(
+                dset_no_nuts.style.format(COLUMNS_TO_DISPLAY_STYLES),
+                use_container_width=False,
+                hide_index=True,
+            )
 
 
 def display_registry_distribution(where_clause: str, params: list[str]) -> None:
@@ -329,7 +388,9 @@ def display_registry_distribution(where_clause: str, params: list[str]) -> None:
             orientation="h",
             color=COLS["REGISTRY"],
             color_discrete_sequence=px.colors.qualitative.Set1,
-            labels={"Registry": "",},
+            labels={
+                "Registry": "",
+            },
         )
 
         fig.update_traces(opacity=0.9, showlegend=False)

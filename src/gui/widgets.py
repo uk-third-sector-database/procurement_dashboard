@@ -19,6 +19,8 @@ WIDGET_KEYS = {
     "IS_SPINE": "selectbox_is_spine",
     "IS_MANUAL_MATCH": "selectbox_is_manual_match",
     "IS_OTHER_MATCH": "selectbox_is_other_match",
+    "FILTER_NUTS": "checkbox_filter_nuts",
+    "NUTS_LEVEL": "selectbox_nuts_level",
     "NUTS_NAMES": {
         "SELECTION": {
             1: "multiselect_nuts_name_1",
@@ -134,6 +136,18 @@ def is_other_match_selector() -> None:
         key=WIDGET_KEYS["IS_OTHER_MATCH"],
     )
 
+def nuts_level_selector() -> None:
+    """Render the NUTS level selector widget in the sidebar."""
+    st.selectbox(
+        **widgets.NUTS_LEVEL,
+        options=[1, 2, 3],
+        index=0,
+        key=WIDGET_KEYS["NUTS_LEVEL"],
+    )
+
+def apply_nuts_filter_selector() -> None:
+    """Render the apply NUTS filter checkbox in the sidebar."""
+    st.sidebar.checkbox(**widgets.FILTER_NUTS, key=WIDGET_KEYS["FILTER_NUTS"])
 
 def assign_state_nuts_keys(level: int) -> None:
     """Ensure the session state keys for NUTS level selectors exist."""
@@ -230,6 +244,7 @@ def reset_is_spine_state_vars() -> None:
         for level in (1, 2, 3):
             _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][level]] = []
             _state[WIDGET_KEYS["NUTS_NAMES"]["ALL"][level]] = False
+        _state[WIDGET_KEYS["FILTER_NUTS"]] = False
     except KeyError:
         pass
 

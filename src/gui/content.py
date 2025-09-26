@@ -10,6 +10,7 @@ TEXT = {
     "ERROR_NO_SOURCE_SELECTED": f"{EMOJIS['WARNING']}Please select at least one source.",
     "ERROR_INCOMPLETE_SELECTIONS": f"{EMOJIS['WARNING']} Please complete all selections.",
     "ERROR_NO_DATA": f"{EMOJIS['WARNING']}No data matches the selected filters.",
+    "TITLE_DATA_NO_NUTS_ID": "Transactions with no NUTS code",
 }
 
 WIDGETS = {
@@ -41,19 +42,24 @@ WIDGETS = {
     "IS_SPINE": {"label": "Is spine?"},
     "IS_MANUAL_MATCH": {"label": "Manual match to spine?"},
     "IS_OTHER_MATCH": {"label": "Other match to spine?"},
+    "NUTS_LEVEL": {"label": "NUTS level"},
+    "FILTER_NUTS": {"label": "Apply NUTS filter?"},
     "NUTS_NAMES": {"ALL": {"label": "All"}},
     "METRICS": {
         "SUPPLIERS": {
             "ALL": {"label": "All suppliers"},
             "SPINE": {"label": "TSOs"},
+            "NON_SPINE": {"label": "Non-TSOs"},
         },
         "TRANSACTIONS": {
             "ALL": {"label": "All transactions"},
             "SPINE": {"label": "Transactions with TSOs"},
+            "NON_SPINE": {"label": "Transactions with Non-TSOs"},
         },
         "AMOUNT": {
             "ALL": {"label": "Total amount"},
             "SPINE": {"label": "Amount to TSOs"},
+            "NON_SPINE": {"label": "Amount to Non-TSOs"},
         },
     },
     "VIEW_TABS": {
