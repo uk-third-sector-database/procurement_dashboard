@@ -2,7 +2,6 @@
 
 from types import SimpleNamespace
 
-import geopandas as gpd
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -12,7 +11,6 @@ import gui.visualisations as vis
 import gui.widgets as wd
 from gui import db
 from gui.content import TEXT, WIDGETS
-from utilities import shared
 from utilities.columns import (
     COLS,
     COLS_SQL,
@@ -39,6 +37,9 @@ st.set_page_config(
 
 # duckdb connection
 con = db.get_con()
+
+# get the shape file
+gpd = db.get_shape_file()
 
 # sidebar top
 sd.top()
@@ -95,118 +96,10 @@ with tabs_views[2]:
 
 if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not True:
     st.stop()
+
 with tabs_views[3]:
-    if not _state[wd.WIDGET_KEYS["IS_SPINE"]] or not all(
-        [
-            _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]],
-            _state["IDS_NUTS"][1],
-            _state["IDS_NUTS"][2],
-            _state["IDS_NUTS"][3],
-        ]
-    ):
-        st.info(
-            f"""
-            Geographical distribution is only available when filtering for
-            '{cols.SPINE}' = True and valid selections for all the NUTS levels.
-            """
-        )
-    else:
-        nuts = gpd.read_file(shared.SHAPE_FILE).to_crs(epsg=4326)
+    vis.display_geographical_distribution(where_clause, params)
 
-        ids_1 = _state["IDS_NUTS"][1] or []
-        ids_2 = _state["IDS_NUTS"][2] or []
-        ids_3 = _state["IDS_NUTS"][3] or []
-
-        mask = (
-            (nuts["LEVL_CODE"].eq(1) & nuts["NUTS_ID"].isin(ids_1))
-            | (nuts["LEVL_CODE"].eq(2) & nuts["NUTS_ID"].isin(ids_2))
-            | (nuts["LEVL_CODE"].eq(3) & nuts["NUTS_ID"].isin(ids_3))
-        )
-
-        nuts = nuts[mask].copy()
-
-        NUTS_LEVEL = 3
-        nuts_display = nuts.loc[nuts.LEVL_CODE == NUTS_LEVEL]
-
-        COLUMN_NUTS_ID = f"NUTS ID {NUTS_LEVEL}"
-        dset_nuts = con.execute(
-            f"""
-                WITH filtered AS (
-                    SELECT {quote_ident(COLUMN_NUTS_ID)},
-                            {cols_sql.AMOUNT}
-                FROM data
-                WHERE {where_clause}
-                ),
-                agg AS (
-                    SELECT
-                        {quote_ident(COLUMN_NUTS_ID)},
-                        SUM({cols_sql.AMOUNT}) AS {cols_sql.TOTAL_VALUE_PAYMENTS},
-                        COUNT(*) AS {cols_sql.TOTAL_PAYMENTS}
-                    FROM filtered
-                    WHERE {quote_ident(COLUMN_NUTS_ID)} IS NOT NULL
-                    GROUP BY {quote_ident(COLUMN_NUTS_ID)}
-                )
-                SELECT *
-                FROM agg
-            """,
-            params,
-        ).fetchdf()
-
-        # merge nuts_display with dset_nuts on NUTS_ID_1
-        nuts_display = nuts_display.merge(
-            dset_nuts, how="left", left_on="NUTS_ID", right_on=COLUMN_NUTS_ID
-        )
-        nuts_display[cols.TOTAL_VALUE_PAYMENTS] = nuts_display[cols.TOTAL_VALUE_PAYMENTS].fillna(0)
-        nuts_display[cols.TOTAL_PAYMENTS] = nuts_display[cols.TOTAL_PAYMENTS].fillna(0)
-        nuts_display.set_index("NUTS_ID", inplace=True)
-
-        col_sels = st.columns(2)
-        with col_sels[0]:
-            column_to_plot = st.radio(
-                "Choose what to plot on the map",
-                options=[cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS],
-                index=0,
-                horizontal=True,
-                key="radio_column_to_plot_choropleth",
-            )
-        with col_sels[1]:
-            with st.popover("View legend", width="stretch"):
-                st.text("")
-                st.dataframe(
-                    nuts_display[["NUTS_NAME"]],
-                    use_container_width=True,
-                    hide_index=False,
-                )
-        cols_maps = st.columns(2)
-        with cols_maps[0]:
-            fig = px.choropleth(
-                nuts_display,
-                geojson=nuts_display.geometry,
-                locations=nuts_display.index,
-                hover_name="NUTS_NAME",
-                color=column_to_plot,
-                color_continuous_scale="Blues",
-                projection="mercator",
-            )
-            fig.update_geos(fitbounds="locations", visible=False)
-
-            fig.update_layout(
-                margin=dict(l=0, r=0, t=20, b=0),
-            )
-
-            fig.update_layout(
-                coloraxis_colorbar=dict(
-                    orientation="h", x=0.5, xanchor="center", y=1.05, yanchor="bottom"
-                )
-            )
-
-            st.plotly_chart(fig, use_container_width=True)
-        with cols_maps[1]:
-            st.dataframe(
-                nuts_display[[cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS]],
-                use_container_width=True,
-                hide_index=False,
-            )
 with tabs_views[4]:
     if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not True:
         st.info(

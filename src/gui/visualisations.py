@@ -167,8 +167,108 @@ def display_timecourses(where_clause: str, params: list[str]) -> None:
             labels={column_date: ""},
             title="",
         )
-    fig.update_layout(margin=dict(l=0, r=0, t=40, b=0))
+    fig.update_layout(margin={"l": 0, "r": 0, "t": 40, "b": 0})
     fig.update_yaxes(tickformat=",")
     fig.update_xaxes(dtick="M12", tickformat="%b %Y", ticklabelmode="period")
 
     st.plotly_chart(fig, use_container_width=True)
+
+
+def display_geographical_distribution(where_clause: str, params: list[str]) -> None:
+    """Retrieve and display the geographical distribution in a choropleth map.
+    Args:
+        where_clause (str): The SQL WHERE clause.
+        params (list[str]): The list of parameters for the SQL query.
+    """
+    gpd = db.get_shape_file()
+
+    ids_1 = _state["IDS_NUTS"][1] or []
+    ids_2 = _state["IDS_NUTS"][2] or []
+    ids_3 = _state["IDS_NUTS"][3] or []
+
+    mask = (
+        (gpd["LEVL_CODE"].eq(1) & gpd["NUTS_ID"].isin(ids_1))
+        | (gpd["LEVL_CODE"].eq(2) & gpd["NUTS_ID"].isin(ids_2))
+        | (gpd["LEVL_CODE"].eq(3) & gpd["NUTS_ID"].isin(ids_3))
+    )
+
+    nuts = gpd[mask].copy()
+
+    # retrieve the nuts level 3 data
+    nuts_level = 3
+    nuts_display = nuts.loc[nuts.LEVL_CODE == nuts_level]
+
+    column_nuts_id = f"NUTS ID {nuts_level}"
+    sql = f"""
+            WITH filtered AS (
+                SELECT {quote_ident(column_nuts_id)},
+                        {COLS_SQL["AMOUNT"]}
+            FROM data
+            WHERE {where_clause}
+            ),
+            agg AS (
+                SELECT
+                    {quote_ident(column_nuts_id)},
+                    SUM({COLS_SQL["AMOUNT"]}) AS {COLS_SQL["TOTAL_VALUE_PAYMENTS"]},
+                    COUNT(*) AS {COLS_SQL["TOTAL_PAYMENTS"]}
+                FROM filtered
+                WHERE {quote_ident(column_nuts_id)} IS NOT NULL
+                GROUP BY {quote_ident(column_nuts_id)}
+            )
+            SELECT *
+            FROM agg
+        """
+    dset = db.run_query(sql, params)
+
+    # merge nuts_display with dset_nuts on NUTS_ID_1
+    nuts_display = nuts_display.merge(dset, how="left", left_on="NUTS_ID", right_on=column_nuts_id)
+    nuts_display[COLS["TOTAL_VALUE_PAYMENTS"]] = nuts_display[COLS["TOTAL_VALUE_PAYMENTS"]].fillna(
+        0
+    )
+    nuts_display[COLS["TOTAL_PAYMENTS"]] = nuts_display[COLS["TOTAL_PAYMENTS"]].fillna(0)
+    nuts_display.set_index("NUTS_ID", inplace=True)
+
+    col_sels = st.columns(2)
+    with col_sels[0]:
+        wd.geographical_distribution_data_selector(
+            [COLS["TOTAL_PAYMENTS"], COLS["TOTAL_VALUE_PAYMENTS"]]
+        )
+    with col_sels[1]:
+        wd.popover_dataset(
+            WIDGETS["GEOGRAPHICAL_DISTRIBUTION"]["LEGEND"]["label"], nuts_display[["NUTS_NAME"]]
+        )
+    cols_maps = st.columns(2)
+    with cols_maps[0]:
+        fig = px.choropleth(
+            nuts_display,
+            geojson=nuts_display.geometry,
+            locations=nuts_display.index,
+            hover_name="NUTS_NAME",
+            color=_state[wd.WIDGET_KEYS["GEOGRAPHICAL_DISTRIBUTION_DATA"]],
+            color_continuous_scale=WIDGETS["GEOGRAPHICAL_DISTRIBUTION"]["MAP"]["colorscale"],
+            projection="mercator",
+        )
+
+        fig.update_geos(fitbounds="locations", visible=False)
+
+        fig.update_layout(
+            margin={"l": 0, "r": 0, "t": 20, "b": 0},
+        )
+
+        fig.update_layout(
+            coloraxis_colorbar={
+                "orientation": "h",
+                "x": 0.5,
+                "xanchor": "center",
+                "y": 1.05,
+                "yanchor": "bottom",
+            }
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+    with cols_maps[1]:
+        st.dataframe(
+            nuts_display[[COLS["TOTAL_PAYMENTS"], COLS["TOTAL_VALUE_PAYMENTS"]]],
+            use_container_width=True,
+            hide_index=False,
+        )

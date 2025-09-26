@@ -4,6 +4,7 @@ from datetime import date
 from typing import Any
 
 import duckdb
+import geopandas as gpd
 import pandas as pd
 import streamlit as st
 
@@ -28,6 +29,11 @@ def get_con() -> duckdb.DuckDBPyConnection:
     rel.create_view(VIEW_NAME, replace=True)
 
     return con
+
+@st.cache_resource
+def get_shape_file() -> gpd.GeoDataFrame:
+    """Get the cached GeoDataFrame for the NUTS shapes."""
+    return gpd.read_file(shared.SHAPE_FILE).to_crs(epsg=4326)
 
 
 def run_query(sql: str, params: list[Any] | None = None) -> pd.DataFrame:

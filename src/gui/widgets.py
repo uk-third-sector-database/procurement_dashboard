@@ -34,6 +34,7 @@ WIDGET_KEYS = {
     "SUPPLIERS_RANKING": "radio_suppliers_ranking",
     "TIMECOURSES_DATA": "radio_timecourses_data",
     "TIMECOURSES_FORMAT": "radio_timecourses_format",
+    "GEOGRAPHICAL_DISTRIBUTION_DATA": "radio_geographical_distribution_data",
 }
 cols = SimpleNamespace(**COLS)
 cols_sql = SimpleNamespace(**COLS_SQL)
@@ -323,3 +324,31 @@ def timecourses_format_selector(options) -> None:
         horizontal=True,
         key=WIDGET_KEYS["TIMECOURSES_FORMAT"],
     )
+
+def geographical_distribution_data_selector(options) -> None:
+    """Render the geographical distribution data selector widget in the sidebar.
+    Args:
+        options (list): List of options to display in the selector.
+    """
+    st.radio(
+        **WIDGETS["GEOGRAPHICAL_DISTRIBUTION"]["DATA"],
+        options=options,
+        index=0,
+        horizontal=True,
+        key=WIDGET_KEYS["GEOGRAPHICAL_DISTRIBUTION_DATA"],
+    )
+
+def popover_dataset(label, dset) -> None:
+    """Render a popover with the given label and dataset.
+
+    Args:
+        label (str): The label for the popover.
+        dset (pd.DataFrame): The dataset to display in the popover.
+    """
+    with st.popover(label, width="stretch"):
+        st.text("")
+        st.dataframe(
+            dset,
+            use_container_width=True,
+            hide_index=False,
+        )

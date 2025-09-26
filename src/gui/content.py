@@ -77,5 +77,16 @@ WIDGETS = {
             "label": "Choose how to plot"
         },
         "FORMATS": ["Bar chart", "Line chart"]
+    },
+    "GEOGRAPHICAL_DISTRIBUTION": {
+        "DATA": {
+            "label": "Choose what to plot",
+        },
+        "LEGEND": {
+            "label": "View legend",
+        },
+        "MAP": {
+            "colorscale": "Blues",
+        }
     }
 }
