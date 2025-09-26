@@ -244,6 +244,7 @@ def reset_is_spine_state_vars() -> None:
         for level in (1, 2, 3):
             _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][level]] = []
             _state[WIDGET_KEYS["NUTS_NAMES"]["ALL"][level]] = False
+        _state[WIDGET_KEYS["FILTER_NUTS"]] = False
     except KeyError:
         pass
 
