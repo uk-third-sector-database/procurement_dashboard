@@ -38,31 +38,44 @@ def display_top_metrics(where_clause: str, params: list[str]):
         n_suppliers_spine = db.get_suppliers_number(where_clause_spine, params)
         n_transactions_spine = db.get_transactions_number(where_clause_spine, params)
         total_amount_spine = db.get_total_amount(where_clause_spine, params)
+    else:
+        n_suppliers_spine = None
+        n_transactions_spine = None
+        total_amount_spine = None
 
     cols_metrics = st.columns(3)
 
     with cols_metrics[0].container(border=True):
         metric_content = WIDGETS["METRICS"]["SUPPLIERS"]
-        if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not True:
-            st.metric(**metric_content["ALL"], value=f"{n_suppliers:,}")
-            st.metric(**metric_content["SPINE"], value=f"{n_suppliers_spine:,}")
-        else:
-            st.metric(**metric_content["SPINE"], value=f"{n_suppliers:,}")
+        match _state[wd.WIDGET_KEYS["IS_SPINE"]]:
+            case True:
+                st.metric(**metric_content["SPINE"], value=f"{n_suppliers:,}")
+            case False:
+                st.metric(**metric_content["NON_SPINE"], value=f"{n_suppliers:,}")
+            case None:
+                st.metric(**metric_content["ALL"], value=f"{n_suppliers:,}")
+                st.metric(**metric_content["SPINE"], value=f"{n_suppliers_spine:,}")
+
     with cols_metrics[1].container(border=True):
         metric_content = WIDGETS["METRICS"]["TRANSACTIONS"]
-        if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not True:
-            st.metric(**metric_content["ALL"], value=f"{n_transactions:,}")
-            st.metric(**metric_content["SPINE"], value=f"{n_transactions_spine:,}")
-        else:
-            st.metric(**metric_content["SPINE"], value=f"{n_transactions:,}")
+        match _state[wd.WIDGET_KEYS["IS_SPINE"]]:
+            case True:
+                st.metric(**metric_content["SPINE"], value=f"{n_transactions:,}")
+            case False:
+                st.metric(**metric_content["NON_SPINE"], value=f"{n_transactions:,}")
+            case None:
+                st.metric(**metric_content["ALL"], value=f"{n_transactions:,}")
+                st.metric(**metric_content["SPINE"], value=f"{n_transactions_spine:,}")
     with cols_metrics[2].container(border=True):
         metric_content = WIDGETS["METRICS"]["AMOUNT"]
-        if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not True:
-            st.metric(**metric_content["ALL"], value=f"{total_amount:,.0f}")
-            st.metric(**metric_content["SPINE"], value=f"{total_amount_spine:,.0f}")
-        else:
-            st.metric(**metric_content["SPINE"], value=f"{total_amount:,.0f}")
-
+        match _state[wd.WIDGET_KEYS["IS_SPINE"]]:
+            case True:
+                st.metric(**metric_content["SPINE"], value=f"{total_amount:,}")
+            case False:
+                st.metric(**metric_content["NON_SPINE"], value=f"{total_amount:,}")
+            case None:
+                st.metric(**metric_content["ALL"], value=f"{total_amount:,}")
+                st.metric(**metric_content["SPINE"], value=f"{total_amount_spine:,}")
 
 def display_raw_data(where_clause: str, params: list[str]) -> None:
     """Retrieve and display the raw data in a table.
@@ -329,7 +342,9 @@ def display_registry_distribution(where_clause: str, params: list[str]) -> None:
             orientation="h",
             color=COLS["REGISTRY"],
             color_discrete_sequence=px.colors.qualitative.Set1,
-            labels={"Registry": "",},
+            labels={
+                "Registry": "",
+            },
         )
 
         fig.update_traces(opacity=0.9, showlegend=False)

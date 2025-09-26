@@ -46,14 +46,17 @@ WIDGETS = {
         "SUPPLIERS": {
             "ALL": {"label": "All suppliers"},
             "SPINE": {"label": "TSOs"},
+            "NON_SPINE": {"label": "Non-TSOs"},
         },
         "TRANSACTIONS": {
             "ALL": {"label": "All transactions"},
             "SPINE": {"label": "Transactions with TSOs"},
+            "NON_SPINE": {"label": "Transactions with Non-TSOs"},
         },
         "AMOUNT": {
             "ALL": {"label": "Total amount"},
             "SPINE": {"label": "Amount to TSOs"},
+            "NON_SPINE": {"label": "Amount to Non-TSOs"},
         },
     },
     "VIEW_TABS": {
