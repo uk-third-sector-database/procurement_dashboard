@@ -41,6 +41,7 @@ WIDGETS = {
     "IS_SPINE": {"label": "Is spine?"},
     "IS_MANUAL_MATCH": {"label": "Manual match to spine?"},
     "IS_OTHER_MATCH": {"label": "Other match to spine?"},
+    "NUTS_LEVEL": {"label": "NUTS level"},
     "FILTER_NUTS": {"label": "Apply NUTS filter?"},
     "NUTS_NAMES": {"ALL": {"label": "All"}},
     "METRICS": {

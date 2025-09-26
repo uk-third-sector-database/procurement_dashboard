@@ -202,6 +202,7 @@ def display_geographical_distribution(where_clause: str, params: list[str]) -> N
         params (list[str]): The list of parameters for the SQL query.
     """
     gpd = db.get_shape_file()
+    col_sels = st.columns(2, vertical_alignment="bottom")
 
     if _state[wd.WIDGET_KEYS["FILTER_NUTS"]] is True:
         ids_1 = _state["IDS_NUTS"][1] or []
@@ -217,10 +218,22 @@ def display_geographical_distribution(where_clause: str, params: list[str]) -> N
         nuts = gpd[mask].copy()
         # retrieve the nuts level 3 data for the selected NUTS
         nuts_level = 3
+        with col_sels[0]:
+            wd.geographical_distribution_data_selector(
+                [COLS["TOTAL_PAYMENTS"], COLS["TOTAL_VALUE_PAYMENTS"]]
+            )
     else:
         # select data from UK
         nuts = gpd[gpd["CNTR_CODE"] == "UK"].copy()
-        nuts_level = 1
+        with col_sels[0]:
+            cols_refine = st.columns(2)
+            with cols_refine[0]:
+                wd.geographical_distribution_data_selector(
+                    [COLS["TOTAL_PAYMENTS"], COLS["TOTAL_VALUE_PAYMENTS"]]
+                )
+            with cols_refine[1]:
+                wd.nuts_level_selector()
+                nuts_level = _state[wd.WIDGET_KEYS["NUTS_LEVEL"]]
 
     nuts_display = nuts.loc[nuts.LEVL_CODE == nuts_level]
     column_nuts_id = f"NUTS ID {nuts_level}"
@@ -253,11 +266,11 @@ def display_geographical_distribution(where_clause: str, params: list[str]) -> N
     nuts_display[COLS["TOTAL_PAYMENTS"]] = nuts_display[COLS["TOTAL_PAYMENTS"]].fillna(0)
     nuts_display.set_index("NUTS_ID", inplace=True)
 
-    col_sels = st.columns(2)
-    with col_sels[0]:
-        wd.geographical_distribution_data_selector(
-            [COLS["TOTAL_PAYMENTS"], COLS["TOTAL_VALUE_PAYMENTS"]]
-        )
+    # col_sels = st.columns(2)
+    # with col_sels[0]:
+    #     wd.geographical_distribution_data_selector(
+    #         [COLS["TOTAL_PAYMENTS"], COLS["TOTAL_VALUE_PAYMENTS"]]
+    #     )
     with col_sels[1]:
         wd.popover_dataset(
             WIDGETS["GEOGRAPHICAL_DISTRIBUTION"]["LEGEND"]["label"], nuts_display[["NUTS_NAME"]]

@@ -20,6 +20,7 @@ WIDGET_KEYS = {
     "IS_MANUAL_MATCH": "selectbox_is_manual_match",
     "IS_OTHER_MATCH": "selectbox_is_other_match",
     "FILTER_NUTS": "checkbox_filter_nuts",
+    "NUTS_LEVEL": "selectbox_nuts_level",
     "NUTS_NAMES": {
         "SELECTION": {
             1: "multiselect_nuts_name_1",
@@ -133,6 +134,15 @@ def is_other_match_selector() -> None:
         options=[None, True, False],
         format_func=lambda x: text.OPTION_NEITHER if x is None else str(x),
         key=WIDGET_KEYS["IS_OTHER_MATCH"],
+    )
+
+def nuts_level_selector() -> None:
+    """Render the NUTS level selector widget in the sidebar."""
+    st.selectbox(
+        **widgets.NUTS_LEVEL,
+        options=[1, 2, 3],
+        index=0,
+        key=WIDGET_KEYS["NUTS_LEVEL"],
     )
 
 def apply_nuts_filter_selector() -> None:
