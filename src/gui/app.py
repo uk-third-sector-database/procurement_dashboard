@@ -7,12 +7,12 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-import gui.db as db
 import gui.sidebar as sd
 import gui.visualisations as vis
 import gui.widgets as wd
-import utilities.shared as shared
+from gui import db
 from gui.content import TEXT, WIDGETS
+from utilities import shared
 from utilities.columns import (
     COLS,
     COLS_SQL,
@@ -45,8 +45,8 @@ con = db.get_con()
 sd.top()
 
 # widgets
-wd.source_selector(con)
-wd.payment_date_range_selector(con)
+wd.source_selector()
+wd.payment_date_range_selector()
 wd.is_removed_selector()
 wd.is_spine_selector()
 
@@ -58,12 +58,12 @@ if _state[wd.WIDGET_KEYS["IS_SPINE"]] is True:
     wd.is_other_match_selector()
 
     # NUTS selectors
-    wd.nuts_names_selector(con, 1)
+    wd.nuts_names_selector(1)
     if _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][1]]:
-        wd.nuts_names_selector(con, 2)
+        wd.nuts_names_selector(2)
 
         if _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][2]]:
-            wd.nuts_names_selector(con, 3)
+            wd.nuts_names_selector(3)
             if not _state[wd.WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][3]]:
                 st.warning(text.ERROR_INCOMPLETE_SELECTIONS)
                 st.stop()
@@ -78,14 +78,14 @@ else:
 
 where_clause, params = wd.build_where_clause_and_params()
 
-vis.display_top_metrics(con, where_clause, params)
+vis.display_top_metrics(where_clause, params)
 
 tabs_views = st.tabs(
     widgets.VIEW_TABS["titles"]
 )
 
 with tabs_views[0]:
-    vis.display_raw_data(con, where_clause, params)
+    vis.display_raw_data(where_clause, params)
 
 with tabs_views[1]:
     tabs_suppliers = st.tabs(
