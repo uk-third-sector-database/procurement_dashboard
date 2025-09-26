@@ -16,7 +16,6 @@ from gui.content import TEXT, WIDGETS
 from utilities.columns import (
     COLS,
     COLS_SQL,
-    COLUMNS_DATE,
     COLUMNS_TO_DISPLAY_STYLES,
     REGISTRIES,
     quote_ident,
@@ -46,7 +45,6 @@ con = db.get_con()
 sd.top()
 
 # widgets
-wd.records_number_selector()
 wd.source_selector(con)
 wd.payment_date_range_selector(con)
 wd.is_removed_selector()
@@ -82,28 +80,12 @@ where_clause, params = wd.build_where_clause_and_params()
 
 vis.display_top_metrics(con, where_clause, params)
 
-
 tabs_views = st.tabs(
-    [
-        "Raw data",
-        "Supplier distributions",
-        "Timecourses",
-        "Geographical distributions",
-        "Registry distributions",
-    ]
+    widgets.VIEW_TABS["titles"]
 )
 
 with tabs_views[0]:
-    dset_raw = db.get_raw_data(
-        con, where_clause, params + [_state[wd.WIDGET_KEYS["RECORDS_NUMBER"]]]
-    )
-
-    # format the columns to display
-    for col in COLUMNS_DATE:
-        if col in dset_raw.columns and pd.api.types.is_datetime64_any_dtype(dset_raw[col]):
-            dset_raw[col] = dset_raw[col].dt.strftime("%d/%m/%Y")
-    dset_styled = dset_raw.style.format(COLUMNS_TO_DISPLAY_STYLES)
-    st.dataframe(dset_styled, use_container_width=True, hide_index=True)
+    vis.display_raw_data(con, where_clause, params)
 
 with tabs_views[1]:
     tabs_suppliers = st.tabs(

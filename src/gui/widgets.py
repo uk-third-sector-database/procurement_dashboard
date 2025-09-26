@@ -40,7 +40,7 @@ widgets = SimpleNamespace(**WIDGETS)
 
 def records_number_selector() -> None:
     """Render the records number selector widget in the sidebar."""
-    st.sidebar.number_input(**widgets.RECORDS_NUMBER, key=WIDGET_KEYS["RECORDS_NUMBER"])
+    st.number_input(**widgets.RECORDS_NUMBER, key=WIDGET_KEYS["RECORDS_NUMBER"])
 
 
 def source_selector(con: duckdb.DuckDBPyConnection) -> None:

@@ -1,12 +1,6 @@
 """Text and settings for the GUI."""
 
-EMOJIS = {
-    "INFO": "ⓘ",
-    "WARNING": "⚠",
-    "SUPPLIERS": "🏬",
-    "TRANSACTIONS": "🤝",
-    "AMOUNT": "💷"
-}
+EMOJIS = {"INFO": "ⓘ", "WARNING": "⚠", "SUPPLIERS": "🏬", "TRANSACTIONS": "🤝", "AMOUNT": "💷"}
 
 TEXT = {
     "APP_TITLE": "UK Third Sector Procurement Dashboard",
@@ -25,6 +19,7 @@ WIDGETS = {
         "max_value": 500,
         "value": 250,
         "step": 10,
+        "width": 200,
     },
     "SOURCES": {
         "label": "Payment sources",
@@ -41,16 +36,25 @@ WIDGETS = {
     "NUTS_NAMES": {"ALL": {"label": "All"}},
     "METRICS": {
         "SUPPLIERS": {
-            "ALL": {"label": f"{EMOJIS['SUPPLIERS']} All suppliers"},
+            "ALL": {"label": "All suppliers"},
             "SPINE": {"label": "TSOs"},
         },
         "TRANSACTIONS": {
-            "ALL": {"label": f"{EMOJIS['TRANSACTIONS']} All transactions"},
+            "ALL": {"label": "All transactions"},
             "SPINE": {"label": "Transactions with TSOs"},
         },
         "AMOUNT": {
-            "ALL": {"label": f"{EMOJIS['AMOUNT']} Total amount"},
+            "ALL": {"label": "Total amount"},
             "SPINE": {"label": "Amount to TSOs"},
-        }
+        },
+    },
+    "VIEW_TABS": {
+        "titles": [
+            "Raw data",
+            "Supplier distributions",
+            "Timecourses",
+            "Geographical distributions",
+            "Registry distributions",
+        ]
     }
 }
