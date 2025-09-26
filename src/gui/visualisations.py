@@ -325,12 +325,13 @@ def display_registry_distribution(where_clause: str, params: list[str]) -> None:
             dset_reg.reset_index(),
             y=COLS["REGISTRY"],
             x=_state[wd.WIDGET_KEYS["REGISTRIES_DATA"]],
-            title=_state[wd.WIDGET_KEYS["REGISTRIES_DATA"]],
+            title="",
             orientation="h",
             color=COLS["REGISTRY"],
             color_discrete_sequence=px.colors.qualitative.Set1,
-            labels={"Registry": "", _state[wd.WIDGET_KEYS["REGISTRIES_DATA"]]: ""},
+            labels={"Registry": "",},
         )
+
         fig.update_traces(opacity=0.9, showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
     with cols_regs[1]:
