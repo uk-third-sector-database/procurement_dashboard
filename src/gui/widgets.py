@@ -35,6 +35,7 @@ WIDGET_KEYS = {
     "TIMECOURSES_DATA": "radio_timecourses_data",
     "TIMECOURSES_FORMAT": "radio_timecourses_format",
     "GEOGRAPHICAL_DISTRIBUTION_DATA": "radio_geographical_distribution_data",
+    "REGISTRIES_DATA": "radio_registries_data",
 }
 cols = SimpleNamespace(**COLS)
 cols_sql = SimpleNamespace(**COLS_SQL)
@@ -325,6 +326,7 @@ def timecourses_format_selector(options) -> None:
         key=WIDGET_KEYS["TIMECOURSES_FORMAT"],
     )
 
+
 def geographical_distribution_data_selector(options) -> None:
     """Render the geographical distribution data selector widget in the sidebar.
     Args:
@@ -337,6 +339,7 @@ def geographical_distribution_data_selector(options) -> None:
         horizontal=True,
         key=WIDGET_KEYS["GEOGRAPHICAL_DISTRIBUTION_DATA"],
     )
+
 
 def popover_dataset(label, dset) -> None:
     """Render a popover with the given label and dataset.
@@ -352,3 +355,17 @@ def popover_dataset(label, dset) -> None:
             use_container_width=True,
             hide_index=False,
         )
+
+
+def registries_distribution_data_selector(options) -> None:
+    """Render the registries distribution data selector widget in the sidebar.
+    Args:
+        options (list): List of options to display in the selector.
+    """
+    st.radio(
+        **WIDGETS["REGISTRIES"]["DATA"],
+        options=options,
+        index=0,
+        horizontal=True,
+        key=WIDGET_KEYS["REGISTRIES_DATA"],
+    )

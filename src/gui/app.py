@@ -2,8 +2,6 @@
 
 from types import SimpleNamespace
 
-import pandas as pd
-import plotly.express as px
 import streamlit as st
 
 import gui.sidebar as sd
@@ -11,12 +9,7 @@ import gui.visualisations as vis
 import gui.widgets as wd
 from gui import db
 from gui.content import TEXT, WIDGETS
-from utilities.columns import (
-    COLS,
-    COLS_SQL,
-    REGISTRIES,
-    quote_ident,
-)
+from utilities.columns import COLS, COLS_SQL
 
 _state = st.session_state
 
@@ -101,82 +94,4 @@ with tabs_views[3]:
     vis.display_geographical_distribution(where_clause, params)
 
 with tabs_views[4]:
-    if _state[wd.WIDGET_KEYS["IS_SPINE"]] is not True:
-        st.info(
-            f"""
-            Registry distribution is only available when filtering for
-            '{cols.SPINE}' = True.
-            """
-        )
-        st.stop()
-    else:
-        dset_reg = pd.DataFrame()
-        for registry in REGISTRIES:
-            col_flag = quote_ident(registry)
-            col_amount = cols_sql.AMOUNT
-
-            dset_local = con.execute(
-                f"""
-                    SELECT
-                        COUNT_IF({col_flag}) AS {cols_sql.TOTAL_PAYMENTS},
-                        SUM(CASE WHEN {col_flag} THEN {col_amount} ELSE 0 END)
-                            AS {cols_sql.TOTAL_VALUE_PAYMENTS}
-                    FROM data
-                    WHERE {where_clause}
-                """,
-                params,
-            ).fetchdf()
-            dset_local.index = [registry]
-            dset_reg = pd.concat([dset_reg, dset_local], axis=0)
-
-        dset_reg.index.name = cols.REGISTRY
-        dset_reg["Name"] = dset_reg.index.map(REGISTRIES)
-        dset_reg = dset_reg[["Name", cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS]]
-
-        cols_selections = st.columns([0.2, 0.8])
-        with cols_selections[0]:
-            column_to_plot = st.radio(
-                "Choose what to plot",
-                options=[cols.TOTAL_PAYMENTS, cols.TOTAL_VALUE_PAYMENTS],
-                index=0,
-                horizontal=True,
-                key="radio_column_to_plot_registry",
-            )
-        with cols_selections[1]:
-            with st.popover("View registry aggregates data", width="stretch"):
-                st.text("")
-                st.dataframe(
-                    dset_reg.reset_index().rename(columns={"Registry": "Code"}),
-                    use_container_width=True,
-                    hide_index=True,
-                )
-
-        cols_regs = st.columns(2)
-        with cols_regs[0]:
-            fig = px.bar(
-                dset_reg.reset_index(),
-                y=cols.REGISTRY,
-                x=column_to_plot,
-                title=column_to_plot,
-                orientation="h",
-                color=cols.REGISTRY,
-                color_discrete_sequence=px.colors.qualitative.Set1,
-                labels={"Registry": "", column_to_plot: ""},
-            )
-            fig.update_traces(opacity=0.9, showlegend=False)
-            st.plotly_chart(fig, use_container_width=True)
-        with cols_regs[1]:
-            fig = px.pie(
-                dset_reg.reset_index(),
-                values=column_to_plot,
-                names=cols.REGISTRY,
-                title="",
-                hole=0.4,
-                color=cols.REGISTRY,
-                color_discrete_sequence=px.colors.qualitative.Set1,
-            )
-            fig.update_traces(opacity=0.9, showlegend=False)
-            fig.update_traces(
-                textinfo="label+percent", textposition="auto", insidetextorientation="radial"
-            )
-            st.plotly_chart(fig, use_container_width=True)
+    vis.display_registry_distribution(where_clause, params)

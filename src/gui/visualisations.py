@@ -7,7 +7,14 @@ import streamlit as st
 import gui.widgets as wd
 from gui import db
 from gui.content import TEXT, WIDGETS
-from utilities.columns import COLS, COLS_SQL, COLUMNS_DATE, COLUMNS_TO_DISPLAY_STYLES, quote_ident
+from utilities.columns import (
+    COLS,
+    COLS_SQL,
+    COLUMNS_DATE,
+    COLUMNS_TO_DISPLAY_STYLES,
+    REGISTRIES,
+    quote_ident,
+)
 
 _state = st.session_state
 
@@ -272,3 +279,72 @@ def display_geographical_distribution(where_clause: str, params: list[str]) -> N
             use_container_width=True,
             hide_index=False,
         )
+
+
+def display_registry_distribution(where_clause: str, params: list[str]) -> None:
+    """Retrieve and display the registry distribution in bar and pie charts.
+    Args:
+        where_clause (str): The SQL WHERE clause.
+        params (list[str]): The list of parameters for the SQL query.
+    """
+    dset_reg = pd.DataFrame()
+    for registry in REGISTRIES:
+        col_flag = quote_ident(registry)
+        col_amount = COLS_SQL["AMOUNT"]
+
+        sql = f"""
+                SELECT
+                    COUNT_IF({col_flag}) AS {COLS_SQL["TOTAL_PAYMENTS"]},
+                    SUM(CASE WHEN {col_flag} THEN {col_amount} ELSE 0 END)
+                      AS {COLS_SQL["TOTAL_VALUE_PAYMENTS"]}
+                FROM data
+                WHERE {where_clause}
+            """
+        dset = db.run_query(sql, params)
+        dset.index = [registry]
+        dset_reg = pd.concat([dset_reg, dset], axis=0)
+
+    dset_reg.index.name = COLS["REGISTRY"]
+    dset_reg["Name"] = dset_reg.index.map(REGISTRIES)
+    dset_reg = dset_reg[["Name", COLS["TOTAL_PAYMENTS"], COLS["TOTAL_VALUE_PAYMENTS"]]]
+
+    cols_selections = st.columns([0.2, 0.8])
+    with cols_selections[0]:
+        wd.registries_distribution_data_selector(
+            [COLS["TOTAL_PAYMENTS"], COLS["TOTAL_VALUE_PAYMENTS"]]
+        )
+    with cols_selections[1]:
+        wd.popover_dataset(
+            WIDGETS["REGISTRIES"]["VIEW"]["label"],
+            dset_reg.reset_index().rename(columns={"Registry": "Code"}).set_index("Code"),
+        )
+
+    cols_regs = st.columns(2)
+    with cols_regs[0]:
+        fig = px.bar(
+            dset_reg.reset_index(),
+            y=COLS["REGISTRY"],
+            x=_state[wd.WIDGET_KEYS["REGISTRIES_DATA"]],
+            title=_state[wd.WIDGET_KEYS["REGISTRIES_DATA"]],
+            orientation="h",
+            color=COLS["REGISTRY"],
+            color_discrete_sequence=px.colors.qualitative.Set1,
+            labels={"Registry": "", _state[wd.WIDGET_KEYS["REGISTRIES_DATA"]]: ""},
+        )
+        fig.update_traces(opacity=0.9, showlegend=False)
+        st.plotly_chart(fig, use_container_width=True)
+    with cols_regs[1]:
+        fig = px.pie(
+            dset_reg.reset_index(),
+            values=_state[wd.WIDGET_KEYS["REGISTRIES_DATA"]],
+            names=COLS["REGISTRY"],
+            title="",
+            hole=0.4,
+            color=COLS["REGISTRY"],
+            color_discrete_sequence=px.colors.qualitative.Set1,
+        )
+        fig.update_traces(opacity=0.9, showlegend=False)
+        fig.update_traces(
+            textinfo="label+percent", textposition="auto", insidetextorientation="radial"
+        )
+        st.plotly_chart(fig, use_container_width=True)

@@ -88,5 +88,13 @@ WIDGETS = {
         "MAP": {
             "colorscale": "Blues",
         }
+    },
+    "REGISTRIES": {
+        "DATA": {
+            "label": "Choose what to plot",
+        },
+        "VIEW": {
+            "label": "View registry aggregates data",
+        }
     }
 }
