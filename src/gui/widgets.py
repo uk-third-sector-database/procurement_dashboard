@@ -136,6 +136,7 @@ def is_other_match_selector() -> None:
         key=WIDGET_KEYS["IS_OTHER_MATCH"],
     )
 
+
 def nuts_level_selector() -> None:
     """Render the NUTS level selector widget in the sidebar."""
     st.selectbox(
@@ -145,9 +146,11 @@ def nuts_level_selector() -> None:
         key=WIDGET_KEYS["NUTS_LEVEL"],
     )
 
+
 def apply_nuts_filter_selector() -> None:
     """Render the apply NUTS filter checkbox in the sidebar."""
     st.sidebar.checkbox(**widgets.FILTER_NUTS, key=WIDGET_KEYS["FILTER_NUTS"])
+
 
 def assign_state_nuts_keys(level: int) -> None:
     """Ensure the session state keys for NUTS level selectors exist."""
@@ -167,8 +170,7 @@ def nuts_names_selector(level: int) -> None:
 
     dcols = st.sidebar.columns([0.75, 0.25], gap=None, vertical_alignment="center")
     dcols[0].text(f"NUTS Level {level}")
-    with dcols[1]:
-        st.checkbox(**widgets.NUTS_NAMES["ALL"], key=WIDGET_KEYS["NUTS_NAMES"]["ALL"][level])
+    dcols[1].checkbox(**widgets.NUTS_NAMES["ALL"], key=WIDGET_KEYS["NUTS_NAMES"]["ALL"][level])
 
     if (
         _state[WIDGET_KEYS["NUTS_NAMES"]["ALL"][level]] is True
@@ -196,6 +198,27 @@ def nuts_names_selector(level: int) -> None:
             ]
             .tolist()
         )
+    else:
+        match level:
+            case 1:
+                reset_nuts_selectors(2)
+                reset_nuts_selectors(3)
+            case 2:
+                reset_nuts_selectors(3)
+
+
+def reset_nuts_selectors(level: int) -> None:
+    """Reset the NUTS selectors and related session state variables for a given level.
+    Args:
+        level (int): The NUTS level (1, 2, or 3
+    """
+    _state["DSET_NUTS"][level] = None
+    _state["NAMES_NUTS"][level] = []
+    _state["IDS_NUTS"][level] = []
+    if WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][level] in _state:
+        _state[WIDGET_KEYS["NUTS_NAMES"]["SELECTION"][level]] = []
+    if WIDGET_KEYS["NUTS_NAMES"]["ALL"][level] in _state:
+        _state[WIDGET_KEYS["NUTS_NAMES"]["ALL"][level]] = False
 
 
 def init_nuts_state_vars() -> None:
