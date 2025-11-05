@@ -15,19 +15,11 @@ classifiers = [
     "Operating System :: OS Independent"
 ]
 
-# Explicitly declare which Python packages belong to this distribution.
-# This mirrors your previous PDM configuration:
-#   gui        -> src/gui
-#   processing -> src/processing
-#   utils      -> src/utils
-packages = [
-    { include = "gui", from = "src" },
-    { include = "processing", from = "src" },
-    { include = "utils", from = "src" }
-]
+# Use Poetry only for dependency management, not for building/installing this project as a package
+package-mode = false
 
 [tool.poetry.dependencies]
-# This encodes "==3.12.*" as a PEP 440 interval: 3.12 <= v < 3.13
+# Encodes "==3.12.*" as 3.12 ≤ v < 3.13
 python = ">=3.12,<3.13"
 streamlit = ">=1.48.0"
 ruff = ">=0.12.8"
