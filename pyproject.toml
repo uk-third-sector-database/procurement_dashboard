@@ -21,9 +21,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-# Reasonable range for Streamlit Cloud's Python
-python = ">=3.10,<3.13"
-
+python = ">=3.12,<3.13"
 streamlit = ">=1.48.0"
 ruff = ">=0.12.8"
 polars = ">=1.32.3"
