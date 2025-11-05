@@ -15,12 +15,15 @@ classifiers = [
     "Operating System :: OS Independent"
 ]
 
-# Use Poetry only for dependency management, not for building/installing this project as a package
-package-mode = false
+# IMPORTANT: install the gui package from src/
+packages = [
+    { include = "gui", from = "src" }
+]
 
 [tool.poetry.dependencies]
-# Encodes "==3.12.*" as 3.12 ≤ v < 3.13
-python = ">=3.12,<3.13"
+# Reasonable range for Streamlit Cloud's Python
+python = ">=3.10,<3.13"
+
 streamlit = ">=1.48.0"
 ruff = ">=0.12.8"
 polars = ">=1.32.3"
